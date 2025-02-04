@@ -117,9 +117,7 @@ class Extract_Degree:
             ]]
         author_degrees = author_degrees.sort_values(by=['selfdegree_count', 'outdegree_count'], ascending=[True, False])
         prnt('step 10:'+ str( author_degrees.shape))
-        # Save results
-        #author_degrees.to_csv(f"{outputpath}ectel24-{semester}-05-author-degrees.csv", index=False)
-
+        
         # Display sorted results
         author_degrees.sort_values(by='outdegree_count', ascending=False)
         prnt('step 11:'+ str(author_degrees.shape))
@@ -155,14 +153,14 @@ class Extract_Degree:
         authordegrees = authordegrees.sort_values(by='outdegree_count', ascending=False)
         prnt('step 4' + str(authordegrees.shape))
         
-        self.save_data(authordegrees, 'authordegrees.csv')
+        self.save_data(authordegrees, 'author-degrees.csv')
         return authordegrees
     
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
         df.to_csv(
-            f'{self.output_path}/{project_name}-{self.semester}-04-{filename}', 
+            f'{output_path}/{project_name}-{semester}-04-{filename}', 
             index=False,
             quotechar='"'
             )  

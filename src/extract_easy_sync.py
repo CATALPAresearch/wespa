@@ -268,7 +268,7 @@ class Extract_Easy_Sync:
     def save_data(self, df, filename):
         """ Save data to CSV file"""
         df.to_csv(
-            f'{self.output_path}/{project_name}-{self.semester}-02-{filename}', 
+            f'{output_path}/{project_name}-{semester}-02-{filename}', 
             index=False,
             quotechar='"'
             )

@@ -7,10 +7,9 @@ from .util import prnt
 
 class Load:
 
-    def __init__(self, data_path='../data/'):
+    def __init__(self, data_path='./data'):
         # inti vars form the settings file
         self.data_path = data_path
-        self.output_path = outputpath
         self.dump = dump
         self.semester = semester
         self.teacher_ids = teacher_ids  
@@ -164,7 +163,7 @@ class Load:
     def save_data(self, df, filename):
         """ Save data to CSV file"""
         df.to_csv(
-            f'{self.output_path}/{project_name}-{self.semester}-01-{filename}', 
+            f'{output_path}/{project_name}-{self.semester}-01-{filename}', 
             index=False,
             quotechar='"'
             )

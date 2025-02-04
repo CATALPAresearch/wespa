@@ -2,8 +2,7 @@
 project_name = "edm25"
 
 # the standard output folder. Doesn't need to be changed usually
-outputpath = "../output/"
-outputpath = "./output/"
+output_path = "./output/"
 
 # Define the database dump you want to analyse. Usually it is the most recent dump
 dump = 'dump20240826' # all data
@@ -55,7 +54,7 @@ teacher_ids = [
 period_1_arr = {
     'SS2021': ["21-16", "21-17"],             # 27.04.21 - 08.05.21, KW 
     'WS2021_22': ["21-42", "21-43"],          # 18.10.21 - 31.10.21, KW 
-    'SS2022': ["22-xxx", "22-xxx"],           # 27.04.22 - 08.05.22, KW 
+    'SS2022': ["22-16", "22-17"],           # 27.04.22 - 08.05.22, KW 
     'WS2022_23': ["22-42", "22-43"],          # 17.10.22 – 30.10.22, KW
     'SS2023': ["23-16", "23-17"],             # 17.04.23 – 30.04.23, KW
     'WS2023_24': ["23-42", "23-43"],          # 16.10.23 – 29.10.23, KW
@@ -93,7 +92,6 @@ def get_period(semester, period_arr):
     return period_arr.get(semester, [])
 
 # Example usage
-
 period_1 = get_period(semester, period_1_arr)
 period_2 = get_period(semester, period_2_arr)
 period_3 = get_period(semester, period_3_arr)
@@ -103,4 +101,4 @@ period_3 = get_period(semester, period_3_arr)
 #print("Period 2:", period_2)
 #print("Period 3:", period_3)
 
-print(".. settings loaded")
+print("... settings loaded")

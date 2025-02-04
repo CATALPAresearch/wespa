@@ -192,7 +192,7 @@ class Collaboration_Graph:
         - output_path: Path where the output PDF should be saved
         - semester: Semester identifier
         """
-        global outputpath, semester
+        global output_path, semester
         np.random.seed(1234)  # Set seed for reproducibility
 
         # Define layout
@@ -212,10 +212,10 @@ class Collaboration_Graph:
         nx.draw_networkx_edge_labels(plotgr, pos, edge_labels=edge_labels, font_color="blue", font_size=8)
 
         # Ensure output directory exists
-        os.makedirs(os.path.join(outputpath, "group-graphs"), exist_ok=True)
+        os.makedirs(os.path.join(output_path, "group-graphs"), exist_ok=True)
 
         # Save as PDF
-        output_file = os.path.join(outputpath, f"group-graphs/ectel2024-{semester}-05-group-graph-{group_id}.pdf")
+        output_file = os.path.join(output_path, f"group-graphs/{project_name}-{semester}-05-group-graph-{group_id}.pdf")
         plt.savefig(output_file, format="pdf", bbox_inches="tight")
 
         # Show plot (optional)
@@ -270,7 +270,7 @@ class Collaboration_Graph:
         # Prepare output
         graph_measures = pd.DataFrame(graph_measures_list)
         if save_output:
-            output_file = os.path.join(outputpath, f'ectel24-{semester}-05-group-graph-measures.csv')
+            output_file = os.path.join(output_path, f'{project_name}-{semester}-05-group-graph-measures.csv')
             graph_measures.to_csv(output_file, index=False)
             print(f"Graph measures saved to {output_file}")
         
@@ -279,7 +279,7 @@ class Collaboration_Graph:
 
     def create_json_graph_for_all_groups(self, author_relations, last_modified = 0, save_to_file=False):
         """Creates a file containing a JSON object describing the group cohesian graph"""
-        target_week = "week6"  # Change as needed
+        target_week = "week-x"  # Change as needed
 
         # List of all groups
         all_groups = sorted(author_relations['group'].unique())
@@ -310,7 +310,7 @@ class Collaboration_Graph:
             }
             
             if save_to_file:
-                output_dir = f"output/json/{target_week}/"
+                output_dir = f"{output_path}/json/{target_week}/"
                 os.makedirs(output_dir, exist_ok=True)
                 json_file = os.path.join(output_dir, f"g{group}.json")
                 

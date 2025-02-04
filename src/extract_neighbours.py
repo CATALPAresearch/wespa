@@ -78,7 +78,7 @@ class Extract_Neighbours:
 
             #print(f"{i+1}/{pads_length} {pad} {len(df_textchanges_short[df_textchanges_short['moodle_pad_id_'] == pad])} {start_time - time.time()} sec")
 
-        self.save_data(author_relations, 'author_relations.csv')
+        self.save_data(author_relations, 'author-relations.csv')
         return author_relations
         
 
@@ -93,7 +93,7 @@ class Extract_Neighbours:
     def save_data(self, df, filename):
         """ Save data to CSV file"""
         df.to_csv(
-            f'{self.output_path}/{project_name}-{self.semester}-03-{filename}', 
+            f'{output_path}/{project_name}-{semester}-03-{filename}', 
             index=False,
             quotechar='"'
             )        
