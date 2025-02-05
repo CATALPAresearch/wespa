@@ -20,12 +20,13 @@ dump = 'dump20240826' # all data
 #semester = 'SS2021'
 #semester = 'SS2021' ### CSCW'25 study
 #semester = 'SS2021'
-semester = 'WS2022_23' ### CSCW'25 study
+#semester = 'WS2022_23' ### CSCW'25 study
 #semester = 'WS2023_24' ### 
 #semester = 'SS2024'
 ###semester = 'WS2024_25' ### 
 #semester = 'SS2025'
 # semester = 'all'
+
 
 semesters = [
     'SS2021',
@@ -92,9 +93,9 @@ def get_period(semester, period_arr):
     return period_arr.get(semester, [])
 
 # Example usage
-period_1 = get_period(semester, period_1_arr)
-period_2 = get_period(semester, period_2_arr)
-period_3 = get_period(semester, period_3_arr)
+#period_1 = get_period(semester, period_1_arr)
+#period_2 = get_period(semester, period_2_arr)
+#period_3 = get_period(semester, period_3_arr)
 
 # Print the results
 #print("Period 1:", period_1)

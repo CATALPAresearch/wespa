@@ -9,7 +9,9 @@ from .util import print_all_output
 
 
 class Extract_Neighbours:
-
+    def __init__(self,semester,):
+        self.semester = semester
+        
     def extract_neighbours(self, df_textchanges):
         # Step 1 was R parallelization
         df_textchanges_short = df_textchanges
@@ -93,7 +95,7 @@ class Extract_Neighbours:
     def save_data(self, df, filename):
         """ Save data to CSV file"""
         df.to_csv(
-            f'{output_path}/{project_name}-{semester}-03-{filename}', 
+            f'{output_path}/{project_name}-{self.semester}-03-{filename}', 
             index=False,
             quotechar='"'
             )        

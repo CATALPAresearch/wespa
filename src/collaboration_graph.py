@@ -12,6 +12,9 @@ from .util import print_all_output
 
 class Collaboration_Graph:
 
+    def __init__(self, semester):
+        self.semester = semester
+
     def get_moodle_author_id(author_id):
         # FixMe
         return author_id
@@ -192,7 +195,6 @@ class Collaboration_Graph:
         - output_path: Path where the output PDF should be saved
         - semester: Semester identifier
         """
-        global output_path, semester
         np.random.seed(1234)  # Set seed for reproducibility
 
         # Define layout
@@ -215,7 +217,7 @@ class Collaboration_Graph:
         os.makedirs(os.path.join(output_path, "group-graphs"), exist_ok=True)
 
         # Save as PDF
-        output_file = os.path.join(output_path, f"group-graphs/{project_name}-{semester}-05-group-graph-{group_id}.pdf")
+        output_file = os.path.join(output_path, f"group-graphs/{project_name}-{self.semester}-05-group-graph-{group_id}.pdf")
         plt.savefig(output_file, format="pdf", bbox_inches="tight")
 
         # Show plot (optional)
@@ -270,7 +272,7 @@ class Collaboration_Graph:
         # Prepare output
         graph_measures = pd.DataFrame(graph_measures_list)
         if save_output:
-            output_file = os.path.join(output_path, f'{project_name}-{semester}-05-group-graph-measures.csv')
+            output_file = os.path.join(output_path, f'{project_name}-{self.semester}-05-group-graph-measures.csv')
             graph_measures.to_csv(output_file, index=False)
             print(f"Graph measures saved to {output_file}")
         

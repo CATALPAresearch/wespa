@@ -7,6 +7,9 @@ from .util import print_all_output
 
 class Extract_Degree:
 
+    def __init__(self, semester):
+        self.semester = semester
+
     def summarize_individual_level(self, author_relations):
         """
         """
@@ -160,7 +163,7 @@ class Extract_Degree:
     def save_data(self, df, filename):
         """ Save data to CSV file"""
         df.to_csv(
-            f'{output_path}/{project_name}-{semester}-04-{filename}', 
+            f'{output_path}/{project_name}-{self.semester}-04-{filename}', 
             index=False,
             quotechar='"'
             )  

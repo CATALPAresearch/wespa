@@ -7,15 +7,14 @@ from .util import prnt
 
 class Load:
 
-    def __init__(self, data_path='./data'):
+    def __init__(self, semester, data_path='./data'):
         # inti vars form the settings file
         self.data_path = data_path
         self.dump = dump
         self.semester = semester
-        self.teacher_ids = teacher_ids  
-        self.period_1 = period_1
-        self.period_2 = period_2
-        self.period_3 = period_3
+        self.period_1 = get_period(semester, period_1_arr)
+        self.period_2 = get_period(semester, period_2_arr)
+        self.period_3 = get_period(semester, period_3_arr)
 
         self.df = None
     
@@ -58,7 +57,7 @@ class Load:
             df.loc[:, 'text_length'] = df.loc[:, 'text'].str.len() # Fixme
         
         # remove teachers 
-        df = df[~df['authorid'].isin(self.teacher_ids)]
+        df = df[~df['authorid'].isin(teacher_ids)]
         df = df[df['authorid'] != '']
 
         # rearrange columns
@@ -187,9 +186,9 @@ class Load:
                 print(f"Error: File {file_path} does not exist.")
                 return pd.DataFrame()
 
-        moodle_etherpad_file = f'../data/{semester}_user_mapping_moodle_etherpad.csv'
-        etherpad_hash_file = f'../data/{semester}_user_mapping_etherpad_hash.csv'
-        moodle_hash_file = f'../data/{semester}_user_mapping_moodle_hash.csv'
+        moodle_etherpad_file = f'../data/{self.semester}_user_mapping_moodle_etherpad.csv'
+        etherpad_hash_file = f'../data/{self.semester}_user_mapping_etherpad_hash.csv'
+        moodle_hash_file = f'../data/{self.semester}_user_mapping_moodle_hash.csv'
 
         u_moodle_etherpad = load_mapping(moodle_etherpad_file, ["moodle_user_id", "etherpad_user_id"])
         if not u_moodle_etherpad.empty:
