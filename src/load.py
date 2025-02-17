@@ -7,11 +7,10 @@ from .util import prnt
 
 class Load:
 
-    def __init__(self, semester, data_path='./data'):
-        # inti vars form the settings file
-        self.data_path = data_path
-        self.dump = dump
+    def __init__(self, semester, dump='dump20240826', data_path='./data'):
         self.semester = semester
+        self.dump = dump
+        self.data_path = data_path
         self.period_1 = get_period(semester, period_1_arr)
         self.period_2 = get_period(semester, period_2_arr)
         self.period_3 = get_period(semester, period_3_arr)
@@ -24,9 +23,8 @@ class Load:
 
     def preprocess(self, df, activity, filter_group=None, filter_weeks=None):
         """ Convert column format and filter data """
-        print(df.columns)
         if filter_group != None:# and type(filter_group).__name__ in ('list', 'tuple'):
-            print('filter-'+activity)
+            prnt('filter-'+activity)
             df = df[df['groupid'].isin(filter_group)]
         try:
             df['timecreated'] = pd.to_datetime(
@@ -56,9 +54,10 @@ class Load:
             df.assign(text_length=0)
             df.loc[:, 'text_length'] = df.loc[:, 'text'].str.len() # Fixme
         
-        # remove teachers 
+        # remove teachers and empty author fields
         df = df[~df['authorid'].isin(teacher_ids)]
         df = df[df['authorid'] != '']
+        df = df[~df['authorid'].isnull()]
 
         # rearrange columns
         cols_to_order = ['id','authorid', 'groupid', 'padid']
@@ -79,24 +78,26 @@ class Load:
     def process_comments(self, filter_group=None, filter_weeks=None):
         print(f'Loading comment data from CSV')
         df = self.preprocess(self.load_data('pad_comment.csv'), 'comment', filter_group, filter_weeks)
-        print(df.shape)
+        df["type"] = "comments"
         df_summary = self.summarize(df, 'text_length')
-        self.save_data(df, 'data-comment.csv')
-        self.save_data(df_summary, 'data-summary-comment.csv')
+        self.save_data(df, 'data-comments.csv')
+        self.save_data(df_summary, 'data-summary-comments.csv')
     
     def process_comment_replies(self, filter_group=None, filter_weeks=None):
         print(f'Loading comment replies data from CSV')
         df = self.preprocess(self.load_data('pad_comment_reply.csv'), 'commentreply', filter_group, filter_weeks)
+        df["type"] = "comment_replies"
         df_summary = self.summarize(df, 'text_length')
-        self.save_data(df, 'data-reply.csv')
-        self.save_data(df_summary, 'data-summary-reply.csv')
+        self.save_data(df, 'data-comment-replies.csv')
+        self.save_data(df_summary, 'data-summary-comment-replies.csv')
     
-    def process_chat(self, filter_group=None, filter_weeks=None):
+    def process_chats(self, filter_group=None, filter_weeks=None):
         print(f'Loading chat data from CSV')
         df = self.preprocess(self.load_data('pad_chat.csv'), 'chat', filter_group, filter_weeks)
+        df["type"] = "chats"
         df_summary = self.summarize(df, 'text_length')
-        self.save_data(df, 'data-chat.csv')
-        self.save_data(df_summary, 'data-summary-chat.csv')
+        self.save_data(df, 'data-chats.csv')
+        self.save_data(df_summary, 'data-summary-chats.csv')
     
 
     def process_scrolls(self, filter_group= None, filter_weeks=None):
@@ -109,6 +110,7 @@ class Load:
         df['distance_down'] = df['distance_tmp'].clip(lower=0)
         df['distance_up'] = df['distance_tmp'].clip(upper=0)
         df = df.drop('distance_tmp', axis=1)
+        df["type"] = "scrolls"
         
         df_summary = df.groupby(['authorid', 'period']).agg(
             sum_scroll_events=('authorid', 'count'),
@@ -117,25 +119,25 @@ class Load:
             sum_scroll_distance_down=('distance_down', 'sum')
         ).reset_index()
         
-        self.save_data(df, 'data-scroll.csv')
-        self.save_data(df_summary, 'data-summary-scroll.csv')
+        self.save_data(df, 'data-scrolls.csv')
+        self.save_data(df_summary, 'data-summary-scrolls.csv')
     
 
     def process_textedits(self, filter_group=None, filter_weeks=None):
         print(f'Loading textedit data from CSV')
         df = self.preprocess(self.load_data('pad_commit.csv'), 'textedit', filter_group, filter_weeks)
-        
         # Step 2: Rename columns for consistency
         df = df.rename(columns={
+            'id': 'id',
             'userid': 'moodle_author_id',
             'groupid': 'moodle_group_id',
             'padid': 'moodle_pad_id',
             'taskid': 'moodle_task_id',
             'text': 'textedit_changeset',
             'rev': 'textedit_rev',
-            'type': ''
+            'type': 'type'
         })
-        df["type"] = "textedit"
+        df["type"] = "textedits"
         
         # Step 6: Hash Moodle user IDs (if enabled)
         if hashit:
@@ -144,19 +146,19 @@ class Load:
         # Step 8: Remove groups with only one active member
         active_groups = df.groupby("moodle_group_id")['moodle_author_id'].nunique()
         df = df[df['moodle_group_id'].isin(active_groups[active_groups > 1].index)]
-        
+        df["id"] = df.index
         # Step 9: Select only required columns
         selected_columns = [
-            'moodle_author_id', 'moodle_group_id', 'moodle_pad_id',
+            'id', 'moodle_author_id', 'moodle_group_id', 'moodle_pad_id',
             'textedit_changeset', 'timestamp', 'week', 'period', 'type'
         ]
         df = df[selected_columns]
 
-        self.save_data(df, 'data-textedit.csv')
+        self.save_data(df, 'data-textedits.csv')
         self.df = df
 
 
-    def get_date(self):
+    def get_data(self):
         return self.df    
 
     def save_data(self, df, filename):
@@ -170,10 +172,10 @@ class Load:
 
     def run(self, filter_group=None, filter_weeks=None):
         """ Run all preprocessing tasks """
-        self.process_textedits(filter_group, filter_weeks)
+        # self.process_textedits(filter_group, filter_weeks)
         self.process_comments(filter_group, filter_weeks)
         self.process_comment_replies(filter_group, filter_weeks)
-        self.process_chat(filter_group, filter_weeks)
+        self.process_chats(filter_group, filter_weeks)
         self.process_scrolls(filter_group, filter_weeks)
     
 

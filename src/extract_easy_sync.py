@@ -1,23 +1,60 @@
 import pandas as pd
+import numpy as np
 import re
+import os
+from datetime import datetime, timedelta
+import math
 
 from .settings import *
 from .util import prnt
 from .util import print_all_output
 
 
+
 class Extract_Easy_Sync:
-
-    # settings
-    reconstrcut_text = False
+    global print_all_output
     
-    def __init__(self,semester):
+    def __init__(self,semester, time_breaks):
         self.semester = semester
+        self.time_breaks = time_breaks
+        self.ttext = ''
+        self.tmp_pad_id = ''
+        
+        self.tmp_timestamp = datetime(2000, 1, 1).timestamp()
+        self.current_time_threshold = datetime(2000, 1, 1).timestamp()
+        self.observation_timestamps = []
+        self.is_reconstructing_text = False
+        self.add_chars_done = True
+        print_all_output = True
+        
 
-    def extract_changeset(self, changeset, feature='all'):
+    def convertChangsetBase36ToInt(self, clean_source):
+        """Converts the Base36 numbers in the changeset into Base10 integers"""
+        operators = [':','+','-','*','=','>','<','|']
+        tmp = ''
+        clean10_source = ''
+        for char in clean_source:
+            if char in operators:
+                if tmp != '':
+                    clean10_source = clean10_source + str(int(tmp, 36)) + char
+                    tmp = ''
+            else:
+                tmp = tmp + char
+        clean10_source = ':' + clean10_source + str(int(tmp, 36)) 
+        prnt('source converted from base36:\t\t' + clean10_source)
+        return clean10_source
+
+
+    def extract_changeset(self, changeset, feature='all', timestamp=None, group_id=None, pad_id=None):
         """
         Extract changeset features
         """
+        self.add_chars_done = False
+        # reset
+        if pad_id != self.tmp_pad_id:
+            print('New Pad: ' + str(pad_id))
+            self.ttext = ''
+        self.tmp_pad_id = pad_id
         chars_added_total = 0
         chars_removed_total = 0
         chars_kept_total = 0
@@ -33,10 +70,11 @@ class Extract_Easy_Sync:
         source_code = changeset
         prnt('source:\t\t' + str(source_code))
 
+        # Step 1: Seperate payload from operations
         chanched_text = ''
         clean_source = ''
         payload_split = str(source_code).split('$')
-        print('problem space ',payload_split)
+        
         if len(payload_split)>1:
             chanched_text = payload_split[1].replace('$','')
             clean_source = payload_split[0].replace('$','')
@@ -52,43 +90,12 @@ class Extract_Easy_Sync:
         else:
             clean_source = str(clean_source).replace('Z','')
 
-        #prefix = re.findall(r"\:\d+[\>\=\<]\d+", clean10_source)[0]
-        #clean_changes = clean10_source.replace(prefix, '')
-        #changes = re.split(r"[\+\-]", clean_changes)
-
-        # convert base36 to int
-        operators = [':','+','-','*','=','>','<','|']
-        change_operators = ['+','-']
-        tmp = ''
-        clean10_source = ''
-        for char in clean_source:
-            if char in operators:
-                if tmp != '':
-                    clean10_source = clean10_source + str(int(tmp, 36)) + char
-                    tmp = ''
-            else:
-                tmp = tmp + char
-        clean10_source = ':' + clean10_source + str(tmp) #FixMe ... removed conversion of tmp to base 36
-        prnt('source converted from base36:\t\t' + clean10_source)
-
-        # split
-        changes = []
-        tmp2 = ''
-        prefix = re.findall(r"\:\d+[\>\=\<]\d+", clean10_source)
-        if len(prefix)>0:
-            prefix = prefix[0]
-        else:
-            prefix = ''
-        clean10_source_ = clean10_source.replace(prefix, '')
-        i = 0
-        while i < len(clean10_source_):
-            tmp2 = tmp2 + clean10_source_[i]
-            if clean10_source_[i] in change_operators:
-                changes.append(tmp2 + clean10_source_[i+1])
-                i = i+1
-                tmp2 = ''
-            i = i+1
+        
+        # Step 2: Convert changeset base36 to int
+        clean10_source = self.convertChangsetBase36ToInt(clean_source)
     
+        
+        # Step 3: Extract general parameters
         # Text length
         source_text_length = int(re.findall(r":\d+", clean10_source)[0].replace(':',''))
         prnt('source text length:\t\t' + str(source_text_length))
@@ -96,46 +103,73 @@ class Extract_Easy_Sync:
         changed_text_length = int(re.findall(r"[\>\<]\d+", clean10_source)[0].replace('>','').replace('<',''))
         if "<" in clean10_source:
             changed_text_length = changed_text_length * -1
-            pass
-        # prnt(str(source_text_length+changed_text_length) + '=' + str(source_text_length) + '-' + str(changed_text_length))
         prnt('final text length:\t\t' + str(changed_text_length))
 
-        # split individual changes of the changeset
-        position = 1
+        # Step 4: Split operations of the changeset
+        prefix = re.findall(r"\:\d+[\>\=\<]\d+", clean10_source)
+        prefix = prefix[0] if len(prefix)>0 else ''
+        clean10_source_ = clean10_source.replace(prefix, '')
+        changes = re.split(r'(?=\|)', clean10_source_)
+        prnt('base' + clean10_source_)
+        prnt('splitted base: ' + '  --  '.join(changes))
+
+        # Step 5: process individual changes of the changeset
+        position = 0
         line_number = 1
         chars_added = 0
         chars_removed = 0
         chars_kept = 0
-        res = []
+        tmp_chanched_text = chanched_text
+        tmp_text = ''
         for change in changes:
-            prnt('-------------------')
-            prnt(change)
             # update position from previous change operation
-            position = position + chars_kept + chars_added - chars_removed 
+            #position = position + chars_kept + chars_added - chars_removed 
 
-            # character changes
-            chars_added = re.findall(r"\+\d+", change)
-            chars_added = sum([int(char.replace('+', '')) for char in chars_added])
-            chars_removed = re.findall(r"\-\d+", change)
-            chars_removed = sum([int(char.replace('-', '')) for char in chars_removed])
-            pattern = r"(?:^|[^|])\d*=(\d+)"
-            chars_kept = re.findall(pattern, change)
-            chars_kept = sum([int(char.replace('=', '')) for char in chars_kept])
+            # Step 1: formatting
+            formatting_operations = re.findall(r"\*\d+", change)
+            formatting_operations = [fo.replace('*', '') for fo in formatting_operations]
+            formatting_operations = [int(fo) for fo in formatting_operations]
+            number_of_formatting_operations = len(formatting_operations)
+            # TODO: mapp particualr formatting operations
+            # remove formating operations for further analysis
+            change = re.sub(r"\*\d+", '', change)
+            prnt('formatting operations:\t' + str(formatting_operations))
+            prnt('number_of_formatting_operations:' + str(number_of_formatting_operations))   
             
-            prnt('chars added:\t\t' + str(chars_added))
-            prnt('chars removed:\t\t' + str(chars_removed))
-            prnt('chars kept:\t\t' + str(chars_kept))
-            
-            # line changes
+            # Step 2: line changes
+            # |L+N: Insert N characters from the source text, containing L newlines. The last character inserted MUST be a newline, but not the (new) document's final newline.
             lines_added = re.findall(r"\|\d+\+\d+", change)
             number_of_lines_added = sum([int(lines.split('+')[0].replace('|','')) for lines in lines_added])
             number_of_chars_on_added_line = sum([int(lines.split('+')[1]) for lines in lines_added])
+            if number_of_lines_added > 0 and self.is_reconstructing_text==True:
+                value = tmp_chanched_text[0:number_of_chars_on_added_line]
+                tmp_chanched_text = tmp_chanched_text[number_of_chars_on_added_line:]
+                self.ttext = self.ttext[0:position] + value + ('\n' * number_of_lines_added) + self.ttext[position:]
+                position = position + number_of_chars_on_added_line
+
+            # |L-N: Delete N characters from the source text, containing L newlines. The last character inserted MUST be a newline, but not the (old) docu- ment's nal newline.
             lines_removed = re.findall(r"\|\d+\-\d+", change)
             number_of_lines_removed = sum([int(lines.split('-')[0].replace('|','')) for lines in lines_removed])
             number_of_chars_on_removed_line = sum([int(lines.split('-')[1]) for lines in lines_removed])
+            if number_of_lines_removed > 0 and self.is_reconstructing_text==True:
+                #print('--',number_of_lines_removed,'--  ',self.ttext[position-4:position+number_of_chars_on_removed_line+number_of_lines_removed],'</end>')
+                #self.ttext = self.ttext[0:position] + self.ttext[position+number_of_chars_on_removed_line:]
+                #position = position - number_of_chars_on_removed_line
+                #self.ttext = self.ttext[0:position] + self.ttext[position:]
+                pass
+
+            # |L=N: Keep N characters from the source text, containing L newlines. The last character kept MUST be a newline, and the final newline of the document is allowed.
             lines_kept = re.findall(r"\|\d+\=\d+", change)
             number_of_lines_kept = sum([int(lines.split('=')[0].replace('|','')) for lines in lines_kept])
             number_of_chars_on_kept_line = sum([int(lines.split('=')[1]) for lines in lines_kept])
+            if number_of_lines_kept > 0 and self.is_reconstructing_text==True:
+                position = position + number_of_chars_on_kept_line
+                self.ttext = self.ttext[0:position] + ('\n' * number_of_lines_added) + self.ttext[position:]
+                    
+            # remove line operations before the next analysis step
+            change = re.sub(r"\|\d+\+\d+", '', change)
+            change = re.sub(r"\|\d+\-\d+", '', change)
+            change = re.sub(r"\|\d+\=\d+", '', change)
             prnt('lines added:\t\t' + str(number_of_lines_added))
             prnt('chars on added lines:\t' + str(number_of_chars_on_added_line))
             prnt('lines removed:\t\t' + str(number_of_lines_removed))
@@ -143,32 +177,37 @@ class Extract_Easy_Sync:
             prnt('lines kept:\t\t' + str(number_of_lines_kept))
             prnt('chars on kept lines:\t' + str(number_of_chars_on_kept_line))
             
-            # formatting
-            formatting_operations = re.findall(r"\*\d+", change)
-            formatting_operations = [fo.replace('*', '') for fo in formatting_operations]
-            formatting_operations = [int(fo) for fo in formatting_operations]
-            number_of_formatting_operations = len(formatting_operations)
-            prnt('formatting operations:\t' + str(formatting_operations))
-            prnt('number_of_formatting_operations:' + str(number_of_formatting_operations))   
             
-            # positioning
-            position = position + chars_kept
+            # Step 3: character changes
+            chars_added = re.findall(r"\+[\d]+", change) ## FixMe: only the first character is converted from base36
+            chars_added = sum([int(char.replace('+', '')) for char in chars_added])
+            if len(chanched_text) > 0 and self.is_reconstructing_text==True:
+                value = tmp_chanched_text[0:chars_added]
+                tmp_chanched_text = tmp_chanched_text[chars_added:]
+                self.ttext = self.ttext[0:position] + value + self.ttext[position:]
+                position = position + chars_added
+            
+            chars_removed = re.findall(r"\-\d+", change)
+            chars_removed = sum([int(char.replace('-', '')) for char in chars_removed])
+            if chars_removed > 0 and self.is_reconstructing_text==True:
+                self.ttext = self.ttext[0:position] + self.ttext[position+chars_removed:]
+                    
+            chars_kept = re.findall(r"(?:^|[^|])\d*=(\d+)", change)
+            chars_kept = sum([int(char.replace('=', '')) for char in chars_kept])
+            if chars_kept > 0:
+                position = position + chars_kept
+
+            prnt('chars added:\t\t' + str(chars_added))
+            prnt('chars removed:\t\t' + str(chars_removed))
+            prnt('chars kept:\t\t' + str(chars_kept))
+            
+            # positioning # TODO
+            #position = position + chars_kept
             line_number = line_number + number_of_lines_kept + number_of_lines_added - number_of_lines_removed
             prnt('position:\t\t' + str(position))
             prnt('line_number:\t\t' + str(line_number))
 
-            # reconstruct text
-            if self.reconstrcut_text==True:
-                if number_of_lines_added > 0:
-                    self.reconstruct_text(number_of_chars_on_added_line, 'add_lines', number_of_lines_added)
-                if number_of_lines_removed > 0:
-                    self.reconstruct_text(number_of_chars_on_removed_line, 'remove_lines', number_of_lines_removed)
-                if chars_added > 0:
-                    self.reconstruct_text(position, 'add_chars', chanched_text)
-                if chars_removed > 0:
-                    self.reconstruct_text(position, 'remove_chars', chars_removed)
             
-
             # sum up
             chars_added_total = chars_added_total + chars_added
             chars_removed_total = chars_removed_total + chars_removed
@@ -181,7 +220,11 @@ class Extract_Easy_Sync:
             number_of_chars_on_kept_line_total = number_of_chars_on_kept_line_total + number_of_chars_on_kept_line
             formatting_operations_total = formatting_operations_total + formatting_operations
             number_of_formatting_operations_total = number_of_formatting_operations_total + number_of_formatting_operations
-            
+
+        # save current text
+        if self.is_reconstructing_text==True:
+            #self.save_reconstructed_text(timestamp, group_id, pad_id)
+            pass    
             
         # return values
         match feature:
@@ -218,57 +261,123 @@ class Extract_Easy_Sync:
                     'line_number': line_number,
                 }
 
+    
+    def save_reconstructed_text(self, timestamp, group_id, pad_id):
+        """
+        Save a snapshot of the reconstrcuted text 
+        """
+        tmp_timebreak = self.time_breaks[
+            #self.time_breaks['moodle_group_id']== group_id & 
+            self.time_breaks['moodle_pad_id']== pad_id
+            ]
+        if tmp_timebreak[tmp_timebreak['timestamp']==timestamp].shape[0] > 0:
+            self.tmp_timestamp = timestamp
+            pad_name = str(pad_id).replace('$','xxxxx')
+            file_path = f'{output_path}text/{project_name}-{self.semester}-{group_id}-{pad_name}-{math.floor(timestamp)}.txt'
+            print(file_path)
+            with open(file_path, 'w') as f:
+                f.write(self.ttext)
+        
 
-    def reconstruct_text(self, pos, operation, value):
         """
-        Reconstruct text
-        """
-        match operation:
-            case 'add_chars':
-                self.ttext = self.ttext[0:pos] + value + self.ttext[pos:]
-            case 'remove_chars':
-                self.ttext = self.ttext[0:pos] + self.ttext[pos+value:]
-            case 'add_line':
-                self.ttext = self.ttext[0:pos] + ('\n' * value) + self.ttext[pos:]
-                pass
-            case 'remove_line':
-                tail = self.ttext[pos:].replace('\n'*value, '', 1)
-                self.ttext = self.ttext[0:pos] + tail
-                pass
-        return self.ttext
+            rows = []
+            rows.append({
+                "group_id": group_id, 
+                "pad_id": pad_id, 
+                "timestamp": timestamp, 
+                "current_time_threshold": self.current_time_threshold, 
+                "text": self.ttext  # Consider compressing this
+            })
+            tmp_df = pd.DataFrame(rows)
+            tmp_df.to_csv(
+                file_path, 
+                index=False,
+                quotechar='"',
+                mode='a', 
+                header = not os.path.exists(file_path)
+            )
+            """
+
+
+    def remove_line_at_char_position(self, text, char_index):
+        """... needs testing"""
+        lines = text.splitlines(keepends=True)  # Preserve line breaks
+        char_count = 0  # Track character count across lines
+
+        for i, line in enumerate(lines):
+            char_count += len(line)  # Increment with the length of the line
+            if char_index < char_count:  # If the char_index falls in this line
+                #print('ping')
+                del lines[i]  # Remove the entire line
+                break
+        
+        return "".join(lines)  # Join the remaining lines
+
+
+    def generate_observation_times(self, start, end, threshold_type):
+        """Generates an array of observation times within a time range for a given delta of hours, days or weeks"""
+        self.tmp_timestamp = start.timestamp()
+        self.current_time_threshold = start.timestamp()
+        start_date = start.timestamp()        
+        end_date = end.timestamp()
+
+        match threshold_type:
+            case "hours":
+                timestamps = np.array([(start_date + timedelta(hours=i)).timestamp() for i in range((end - start).days*24 + 1)])
+            case "days":
+                timestamps = np.array([(start + timedelta(days=i)).timestamp() for i in range((end - start).days + 1)])
+            case "weeks":
+                timestamps = np.array([(start + timedelta(weeks=i)).timestamp() for i in range(math.floor((end-start).days/7) + 1)])
+
+        self.observation_timestamps = timestamps
+        
+        return self.observation_timestamps
+        
+
+    def readbale_observation_times(self, unix_timestamp_arr):
+        """Util function """
+        readable_dates = [datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d %H:%M:%S') for ts in unix_timestamp_arr]
+        dfx = pd.DataFrame({'Timestamp': unix_timestamp_arr})
+        dfx['Readable Date'] = pd.to_datetime(dfx['Timestamp'], unit='s')
+        return dfx
 
 
     def extract_easy_sync(self, df_textedit):
         """
         Augment the textchange dataframe with extracted information of the changeset
         """
-        print_all_output = False
-        self.reconstrcut_text = False
         df_textchanges = (
             #df_textedit #.head()
-            df_textedit.groupby('moodle_pad_id').first() # to test text reconstrcution
+            #df_textedit.groupby('moodle_pad_id').first() # to test text reconstrcution
+            df_textedit
             .groupby('moodle_pad_id', group_keys=False)  # Group by pad ID
             .apply(
                 lambda group: group.assign(
                     week=group['timestamp'].apply(
                         lambda ts: pd.to_datetime(ts, unit='s').strftime("%y-%U")
                     ),
-                    # Apply extract_changeset once and expand results into multiple columns
-                    **group['textedit_changeset'].apply(self.extract_changeset).apply(pd.Series),
-                    # Compute dependent columns based on extracted metrics
-                    textedit_charsadded=lambda g: g['sourceTextLength'] + g['textchange']
+                    **group.apply(lambda row: 
+                        self.extract_changeset(
+                            row['textedit_changeset'], 
+                            timestamp=row['timestamp'], 
+                            group_id=row['moodle_group_id'], 
+                            pad_id=str(row['moodle_pad_id'])
+                            #pad_id=row[3]
+                        ), axis=1).apply(pd.Series),
+                    textedit_charsadded=lambda g: g['sourceTextLength'] + g['textchange'] # FixMe: do we need this?
                 )
             )
-            .reset_index(drop=False)
+            .reset_index(drop=True)
         )
         self.save_data(df_textchanges, 'textchanges.csv')
         return df_textchanges
+    
     
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
         df.to_csv(
-            f'{output_path}/{project_name}-{self.semester}-02-{filename}', 
+            f'{output_path}{project_name}-{self.semester}-02-{filename}', 
             index=False,
             quotechar='"'
             )

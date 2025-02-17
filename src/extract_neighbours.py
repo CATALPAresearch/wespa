@@ -12,7 +12,7 @@ class Extract_Neighbours:
     def __init__(self,semester,):
         self.semester = semester
         
-    def extract_neighbours(self, df_textchanges):
+    def extract_neighbours(self, df_textchanges, subset_until=0):
         # Step 1 was R parallelization
         df_textchanges_short = df_textchanges
 
@@ -20,8 +20,9 @@ class Extract_Neighbours:
         author_relations = pd.DataFrame(columns=['group', 'pad', 'author', 'left_neighbor', 'right_neighbor', 'count'])
 
         # Get unique pad IDs from df_textchanges_short
-        df_textchanges['moodle_pad_id_'] = df_textchanges['moodle_pad_id'].str.split('$', expand=True)[0]
-        pads = df_textchanges_short['moodle_pad_id_'].unique()
+        pad_split = df_textchanges['moodle_pad_id'].str.split('$', expand=True)
+        df_textchanges['moodle_pad_id'] = pad_split[0] if len(pad_split) > 0 else df_textchanges['moodle_pad_id']
+        pads = df_textchanges_short['moodle_pad_id'].unique()
         pads_length = len(pads)
         
         # Step 3: Determine neighbors
@@ -31,17 +32,17 @@ class Extract_Neighbours:
             prnt('Process pad ' + str(i) + '/' + str(pads_length) + ' Position range from 0 to ' + str(max_position) + '__rows '+str(len(df_textchanges_short[df_textchanges_short['moodle_pad_id'] == pad])))
             
             # Step 4: Prepare array for storing the author of each character
-            max_position = df_textchanges_short.loc[df_textchanges_short['moodle_pad_id_'] == pad, 'position'].max()
-            max_change_length = df_textchanges_short.loc[df_textchanges_short['moodle_pad_id_'] == pad, 'textchange'].max()
+            max_position = df_textchanges_short.loc[df_textchanges_short['moodle_pad_id'] == pad, 'position'].max()
+            max_change_length = df_textchanges_short.loc[df_textchanges_short['moodle_pad_id'] == pad, 'textchange'].max()
             max_position = abs(max_position) + abs(max_change_length) +100
             char_authors = np.array(np.zeros(max_position, dtype=int))  # Initialize a list of zeros
             
             # Step 5: Identifiy neighbours of the position of each changeset
             pad_changes = []
-            for _, change in df_textchanges_short[df_textchanges_short['moodle_pad_id_'] == pad].iterrows():
+            for _, change in df_textchanges_short[df_textchanges_short['moodle_pad_id'] == pad].iterrows():
                 text_length = int(change['textchange'])
                 author = change['moodle_author_id']
-                pad_id = change['moodle_pad_id_']
+                pad_id = change['moodle_pad_id']
                 group_id = change['moodle_group_id']
                 start_pos = int(change['position'])
                 end_pos = start_pos + text_length if text_length >= 0 else start_pos #NewFix
@@ -76,9 +77,10 @@ class Extract_Neighbours:
 
             # Convert to DataFrame and add to author_relations
             pad_changes_df = pd.DataFrame(pad_changes, columns=['group', 'pad', 'author', 'left_neighbor', 'right_neighbor', 'count'])
+            
             author_relations = pd.concat([author_relations, pad_changes_df], ignore_index=True)
-
-            #print(f"{i+1}/{pads_length} {pad} {len(df_textchanges_short[df_textchanges_short['moodle_pad_id_'] == pad])} {start_time - time.time()} sec")
+            author_relations['until'] = subset_until
+            #print(f"{i+1}/{pads_length} {pad} {len(df_textchanges_short[df_textchanges_short['moodle_pad_id'] == pad])} {start_time - time.time()} sec")
 
         self.save_data(author_relations, 'author-relations.csv')
         return author_relations

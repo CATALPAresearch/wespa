@@ -10,7 +10,7 @@ class Extract_Degree:
     def __init__(self, semester):
         self.semester = semester
 
-    def summarize_individual_level(self, author_relations):
+    def summarize_individual_level(self, author_relations, subset_until=0):
         """
         """
         # Step 1: Summarize results per group and author
@@ -30,16 +30,17 @@ class Extract_Degree:
 
         # Splitting left_right into separate columns safely
         split_values = author_relations_summary['left_right'].str.split('-', expand=True)
-        author_relations_summary['left'] = split_values[0].astype('int') 
-        author_relations_summary['right'] = split_values[1].astype('int').abs()  
+        author_relations_summary['left'] = split_values[0].astype('int') if len(split_values) > 0 else -1000
+        author_relations_summary['right'] = split_values[1].astype('int').abs() if len(split_values) > 0 else -1000 
 
         # Return relevant columns
         res = author_relations_summary[['group', 'author', 'left', 'right', 'count_changesets', 'char_count']]
+        res['until'] = subset_until
         self.save_data(res, 'author_relations_summary.csv')
         return res
 
 
-    def extract_degree(self, author_relations_summary):
+    def extract_degree(self, author_relations_summary, subset_until=0):
         """
         """
         # Step 1: Compute degrees
@@ -124,19 +125,23 @@ class Extract_Degree:
         # Display sorted results
         author_degrees.sort_values(by='outdegree_count', ascending=False)
         prnt('step 11:'+ str(author_degrees.shape))
+        
+        author_degrees['until'] = subset_until
         #print(author_degrees)
         return author_degrees
     
 
-    def map_to_group(self, df_textchanges, author_degrees):
+    def map_to_group(self, df_textchanges, author_degrees, subset_until=0):
         """
         """
         #print('map')
-        #print(df_textchanges)
-        #print(author_degrees)
+        #print(df_textchanges.shape, df_textchanges[3]['moodle_author_id'])
+        #print(author_degrees.shape, author_degrees[3]['author'])
         # Step 1: Create a mapping of authors to groups
         group_author_mapping = df_textchanges[['moodle_author_id', 'moodle_group_id']].drop_duplicates()
 
+        #author_degrees['author'] = author_degrees['author'].astype(int)
+        #group_author_mapping['moodle_author_id'] = group_author_mapping['moodle_author_id'].astype(int)
         # Step 2: Merge author degrees with group mapping
         authordegrees = author_degrees.merge(
             group_author_mapping, 
@@ -155,7 +160,7 @@ class Extract_Degree:
         # Step 5: Sort the results
         authordegrees = authordegrees.sort_values(by='outdegree_count', ascending=False)
         prnt('step 4' + str(authordegrees.shape))
-        
+        authordegrees['until'] = subset_until
         self.save_data(authordegrees, 'author-degrees.csv')
         return authordegrees
     

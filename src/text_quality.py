@@ -1,11 +1,14 @@
 from collections import Counter
 import json
 import re
+from pathlib import Path
 import textstat
 from language_tool_python import LanguageTool
 import textdescriptives as td
 import spacy
 from spacy.lang.de import German
+import de_core_news_sm
+
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import NMF
 from sentence_transformers import SentenceTransformer, util
@@ -14,6 +17,106 @@ from nltk import word_tokenize
 from nltk.corpus import wordnet
 import pandas as pd
 
+from .extract_easy_sync import Extract_Easy_Sync
+from .settings import *
+
+class Preprocess_Text_Quality:
+
+    def __init__(self, semester):
+        self.semester = semester
+        self.tq = Text_Quality()
+
+    def split_text_progression_by_threshold(self, all_text, semester, start_date, end_date, threshold_type = 'days', group_column="group_id"):
+        """..."""
+        es = Extract_Easy_Sync(semester, None)
+        date_thresholds = es.generate_observation_times(start_date, end_date, threshold_type)
+        #print(date_thresholds)
+        
+        df1 = pd.DataFrame(all_text)
+
+        df1 = df1.dropna(axis=0)
+        df1['timestamp'] = df1['timestamp'].astype(float)
+        #df1[group_column] = df1[group_column].astype(int)
+        df1 = df1.sort_values(by=[group_column, 'timestamp'])
+
+        # Initialize the new column with False
+        df1['is_first_above_threshold'] = False
+        df1['threshold_type'] = threshold_type
+        
+        # Iterate through groups and check for the first occurrence above any threshold
+        for index, group_df in df1.groupby(group_column):
+            for threshold in sorted(date_thresholds):
+                #print(index, threshold)
+                first_above = group_df[group_df['timestamp'] < threshold.astype(float)] #.sort_values(by=['timestamp'])
+                if first_above.shape[0] > 0:
+                    #for item in first_above.itertuples(index=True):
+                    #print(first_above.index.max())
+                    df1.loc[first_above.index.max(), 'is_first_above_threshold'] = True
+        
+        time_breaks = df1[df1['is_first_above_threshold']==True]
+        time_breaks = time_breaks[[
+            'id', 
+            'moodle_group_id', 
+            #'moodle_author_id', 
+            'moodle_pad_id', 
+            'timestamp']
+            ]
+        return time_breaks
+
+
+    def determine_text_quality_from_csv(self, df_text_raw):
+        """..."""
+        test = self.tq.run('test test test')
+        text_quality_results = pd.DataFrame(columns=['group_id', 'pad_id', 'timestamp', 'threshold_type'] + [(k) for k, v in test.items()] + ['text'])
+        i=0
+        for row in df_text_raw.itertuples():
+            if(row.text != '' or row.text== None):
+                qs_result = self.tq.run(row.text) # FixMe .replace('\n','')
+                text_quality_results.loc[i] = [row.group_id] + [row.pad_id] + [row.timestamp] + [row.threshold_type] + [(v) for k, v in qs_result.items()]  + [row.text.replace('\n',' ')]
+                i=i+1
+
+        text_quality_results.to_csv(
+                    f'{output_path}/{project_name}-{self.semester}-02.2-text-quality', 
+                    index=False,
+                    quotechar='"'
+                    )
+        return text_quality_results
+    
+
+    def determine_text_quality_from_files(self, threshold_type='days'):
+        """..."""
+        test = self.tq.run('test test test')
+        text_quality_results = pd.DataFrame(columns=['group_id', 'pad_id', 'timestamp', 'threshold_type'] + [(k) for k, v in test.items()] + ['text'])
+        #file_path = f'{output_path}text/{project_name}-{self.semester}-{group_id}-{pad_name}-{math.floor(timestamp)}.txt'
+        folder = Path(f'{output_path}text/')  # Convert to Path object
+        i=0
+        for txt_file in folder.glob("*.txt"):
+            with txt_file.open("r", encoding="utf-8") as file:
+                content = file.read()  # Read the file content
+                
+                split_file_name = txt_file.name.split('-')
+                if len(split_file_name) > 3:
+                    semester = split_file_name[1]
+                    group_id = split_file_name[2]
+                    pad_id = split_file_name[3]
+                    timestamp = split_file_name[4]
+                    threshold_type = threshold_type
+
+                    qs_result = self.tq.run(content)
+                    
+                    if self.semester == semester:
+                        text_quality_results.loc[i] = [group_id] + [pad_id] + [timestamp] + [threshold_type] + [(v) for k, v in qs_result.items()]  + [content.replace('\n',' ')]
+                        i=i+1
+
+        text_quality_results.to_csv(
+            f'{output_path}/{project_name}-{self.semester}-02.2-text-quality', 
+            index=False,
+            quotechar='"'
+            )
+        return text_quality_results
+    
+    
+        
 
 
 class Text_Quality:
@@ -22,13 +125,19 @@ class Text_Quality:
         self.language = 'de' # de?
         self.language_long = 'english' # de?
         self.language_country = 'de-DE' #'en-US'
-        self.nlp = spacy.load('de_dep_news_trf')# en_core_web_sm, de_core_news_sm, de_dep_news_trf
-        self.nlp.add_pipe('textdescriptives/all')
+        
         # FixMe Check whether the following nltk files have been downloaded already
         #nltk.download('punkt_tab')
         #nltk.download('punkt')
         #nltk.download('wordnet')
-        
+    
+    def init_spacy(self, text, model='de_core_news_md'):
+        #nlp = spacy.load(model)#de_dep_news_trf de_core_news_md ,en_core_web_md, de_core_news_sm, de_dep_news_trf
+        nlp = de_core_news_sm.load()
+        nlp.max_length = 3000000
+        nlp.add_pipe('textdescriptives/all')
+        self.doc = nlp(text)
+
         
     def compute_quantitative_measures(self, corpus):
         """        
@@ -53,17 +162,19 @@ class Text_Quality:
         SPACE: space, e.g.
         """
         text = " ".join(corpus)
-        nlp = spacy.load("de_core_news_sm")
-        nlp.add_pipe("textdescriptives/all")
-        doc = nlp(text)
+        #nlp = spacy.load("de_core_news_sm")
+        #self.nlp.add_pipe("textdescriptives/all")
+        #doc = self.nlp(text)#, disable = ['ner', 'parser'])
         # doc._.sentence_length # mean, median, ...
         
         number_of_words = 0
         counter = Counter(word_tokenize(text))
         for t in counter:
             number_of_words = number_of_words + counter[t] 
-        
+        number_of_words = 1 if number_of_words == 0 else number_of_words
+
         number_of_lines = len(text.split('/n'))
+        umber_of_lines = 1 if number_of_lines == 0 else number_of_lines
 
         simple_measures = {
             "char_count": textstat.char_count(text, ignore_spaces=False),
@@ -75,11 +186,11 @@ class Text_Quality:
             #"sentence_length_median": sentence_length_median" # TODO
             "line_count": number_of_lines,
             #"paragraph_count": paragraph_count" # TODO
-            "stop_words": doc._.quality.n_stop_words.value / number_of_words,
-            "bullet_points": doc._.quality.proportion_bullet_points.value / number_of_lines
+            "stop_words": self.doc._.quality.n_stop_words.value / number_of_words,
+            "bullet_points": self.doc._.quality.proportion_bullet_points.value / number_of_lines
             }
         
-        pos_tags = doc._.pos_proportions
+        pos_tags = self.doc._.pos_proportions
         pos_tags['proportion_adjective'] = pos_tags.pop('pos_prop_ADJ')
         pos_tags['proportion_adposition'] = pos_tags.pop('pos_prop_ADP')
         pos_tags['proportion_adverbs'] = pos_tags.pop('pos_prop_ADV')
@@ -97,14 +208,14 @@ class Text_Quality:
         pos_tags['proportion_symbol'] = pos_tags.pop('pos_prop_SYM')
         pos_tags['proportion_verb'] = pos_tags.pop('pos_prop_VERB')
         pos_tags['proportion_others'] = pos_tags.pop('pos_prop_X')
-
+        print(pos_tags)
         return simple_measures | pos_tags
         
 
     def compute_readability(self, text):
         """Evaluates how easily a reader can understand the text, often using metrics like the Flesch-Kincaid Grade Level."""
         flesch_kincaid_grade = textstat.flesch_kincaid_grade(text)
-        return {"readbility": flesch_kincaid_grade} #TODO: normalise 0..1
+        return {"readbility": flesch_kincaid_grade / 100} 
     
     def compute_gramaticality(self, text):
         """Assesses the correctness of grammar in the text."""
@@ -115,8 +226,8 @@ class Text_Quality:
     
     def compute_coherence(self, text): #TODO/Remove
         """Evaluates the logical flow and connectivity between sentences and paragraphs."""
-        doc = self.nlp(text)
-        coherence = doc._.coherence
+        #doc = self.nlp(text)#, disable = ['ner', 'parser'])
+        coherence = self.doc._.coherence
         return coherence
 
 
@@ -124,6 +235,8 @@ class Text_Quality:
         """Assesses the range of vocabulary used in the text."""
         #nltk.download('punkt')
         words = nltk.word_tokenize(text)
+        if len(words)==0:
+            return {"lexical_diversity": 0}    
         unique_words = set(words)
         lexical_diversity = len(unique_words) / len(words)
         return {"lexical_diversity": lexical_diversity}
@@ -132,7 +245,7 @@ class Text_Quality:
     def compute_text_complexity(self, text):
         """Analyzes the complexity of the text, including syntactic and semantic aspects."""
         school_grade_level = textstat.text_standard(text) # en only
-        school_grade_score = textstat.dale_chall_readability_score(text) / 9.9
+        school_grade_score = textstat.dale_chall_readability_score(text) / 10 # ? correct
         return {"text_complexity": school_grade_score}
     
 
@@ -158,6 +271,8 @@ class Text_Quality:
     def compute_information_desity(self, text): #TODO duplicate?
         """Evaluates the amount of information conveyed in the text relative to its length."""
         words = nltk.word_tokenize(text)
+        if len(words)==0:
+            return 0
         information_density = len(set(words)) / len(words)
         return information_density
     
@@ -165,17 +280,22 @@ class Text_Quality:
     def compute_duplicate_lines(self, text):
         """Duplicate lines character fraction: Fraction of characters in a document which are contained within duplicate lines."""
         nlp = German()
+        nlp.max_length = 3000000
         nlp.add_pipe('sentencizer')
-        doc = nlp(text)
+        doc = nlp(text)#, disable = ['ner', 'parser'])
         sentences = [sent.text.strip() for sent in doc.sents]
+        if len(sentences)==0:
+            return {"duplicate_lines": 0}
+        if len(sentences)==1:
+            return {"duplicate_lines": 1}     
         unique_sentences = set(sentences)
         return {"duplicate_lines": len(unique_sentences)/len(sentences)} 
 
 
     def compute_duplicate_paragraphs(self, text): #TODO
         """Duplicate paragraphs character fraction: Fraction of characters in a document which are contained within duplicate paragraphs."""
-        doc = self.nlp(text)
-        duplicate_paragraphs = doc._.duplicate_paragraphs_chr_fraction()
+        #self.doc = self.nlp(text)#, disable = ['ner', 'parser'])
+        duplicate_paragraphs = self.doc._.duplicate_paragraphs_chr_fraction()
         return duplicate_paragraphs
     
 
@@ -194,10 +314,10 @@ class Text_Quality:
         pass
    
 
-    def get_noun_roles(self, doc):
+    def get_noun_roles(self, document):
         """Extract nouns and classify them as subject, object, or other."""
         nouns = []
-        for token in doc:
+        for token in document:
             if token.pos_ == "NOUN":
                 role = "other"
                 if "subj" in token.dep_:
@@ -249,20 +369,25 @@ class Text_Quality:
 
     def compute_lexical_chains(self, text):
         """Pipeline to extract lexical chains from a text."""
-        nlp = spacy.load("de_core_news_sm")
-        doc = nlp(text)
-        nouns = self.get_noun_roles(doc)
+        #nlp = spacy.load("de_core_news_sm")
+        #doc = self.nlp(text)#, disable = ['ner', 'parser'])
+        nouns = self.get_noun_roles(self.doc)
         chains = self.build_lexical_chains(nouns)
 
-        # Print results
         chain_length = list()
         for i, chain in enumerate(chains, 1):
             words = [word for word, role in chain]
             roles = [role for _, role in chain]
             if len(chain)>1:
-                print(f"Chain {i}: {words} (Length: {len(chain)})")
-                print(f"Roles: {roles}")
+                #print(f"Chain {i}: {words} (Length: {len(chain)})")
+                #print(f"Roles: {roles}")
                 chain_length.append(len(chain))
+        chain_length = 1 if chain_length == 0 else chain_length
+        if len(chain_length)==0:
+            return {
+            "lexical_chains": 0, 
+            "avg_chain_lenght": 0 
+            } 
         return {
             "lexical_chains": len(chain_length), 
             "avg_chain_lenght": sum(chain_length)/len(chain_length) 
@@ -270,9 +395,11 @@ class Text_Quality:
     
     
 
-    def run (self, corpus):
+    def run (self, corpus, model='de_core_news_md'):
         """Compute and combine all indicators for a given text"""
-        text = '\n'.join(corpus)
+        text = ' '.join(corpus) # FoxMe corpus should be joined with \n but spacy breaks if linebreaks are passed. Spacy pipeline should be implemented
+
+        self.init_spacy(text, model)
         
         # descriptive indicators
         qm = self.compute_quantitative_measures(corpus) 
@@ -338,6 +465,7 @@ if __name__ == '__main__':
 
     text = '\n'.join(corpus)
 
+    #self.init_spacy(text)
     #print(tq.compute_lexical_chains(text))  # DONE
     #print(tq.compute_transitional_words(text)) # DONE
 

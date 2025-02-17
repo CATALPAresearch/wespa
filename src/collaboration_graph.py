@@ -14,6 +14,9 @@ class Collaboration_Graph:
 
     def __init__(self, semester):
         self.semester = semester
+        self.save_plot = False
+        self.save_outpu = False
+        self.show_plot = False
 
     def get_moodle_author_id(author_id):
         # FixMe
@@ -34,12 +37,12 @@ class Collaboration_Graph:
             left_neighbor = row.get('left_neighbor', None)
             right_neighbor = row.get('right_neighbor', None)
 
-            if pd.notna(left_neighbor) and left_neighbor != 0 and left_neighbor != author:
+            if pd.notna(author) and pd.notna(left_neighbor) and left_neighbor != 0 and left_neighbor != author:
                 row_index = student_index[author]
                 col_index = student_index[left_neighbor]
                 mat[row_index, col_index] += 1
 
-            if pd.notna(right_neighbor) and right_neighbor != 0 and right_neighbor != author:
+            if pd.notna(author) and pd.notna(right_neighbor) and right_neighbor != 0 and right_neighbor != author:
                 print(right_neighbor, author, len(student_index))
                 row_index = student_index[author]
                 col_index = student_index[right_neighbor]
@@ -217,14 +220,15 @@ class Collaboration_Graph:
         os.makedirs(os.path.join(output_path, "group-graphs"), exist_ok=True)
 
         # Save as PDF
-        output_file = os.path.join(output_path, f"group-graphs/{project_name}-{self.semester}-05-group-graph-{group_id}.pdf")
-        plt.savefig(output_file, format="pdf", bbox_inches="tight")
+        if self.save_plot:
+            output_file = os.path.join(output_path, f"group-graphs/{project_name}-{self.semester}-05-group-graph-{group_id}.pdf")
+            plt.savefig(output_file, format="pdf", bbox_inches="tight")
 
         # Show plot (optional)
-        plt.show()
+        if self.show_plot:
+            plt.show()
 
-        print(f"Graph saved to {output_file}")
-
+        
 
     def check_random_group(self, author_relations):
         """Manual check"""
@@ -245,8 +249,12 @@ class Collaboration_Graph:
         print(measure)
 
 
-    def create_graph_for_all_groups(self, author_relations, save_plot: False, save_output: False):
+    def create_graph_for_all_groups(self, author_relations, subset_until=0, save_plot= False, save_output= False, show_plot=False):
         """Iterate over all groups to build the graph and calculate the measures"""
+        self.save_plot = save_plot
+        self.save_outpu = save_output
+        self.show_plot = show_plot
+
         # Step 1: Get all unique groups
         all_groups = author_relations['group'].drop_duplicates().sort_values().tolist()
             
@@ -276,6 +284,8 @@ class Collaboration_Graph:
             graph_measures.to_csv(output_file, index=False)
             print(f"Graph measures saved to {output_file}")
         
+        graph_measures['until'] = subset_until
+
         return graph_measures
     
 
