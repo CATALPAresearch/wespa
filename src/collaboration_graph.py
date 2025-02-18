@@ -88,6 +88,7 @@ class Collaboration_Graph:
             return {
                 'group': the_group,
                 'week': the_week,
+                'until': self.subset_until,
                 'activeUsers': len(degrees),
                 'isolatedUsers': 1,
                 'usersProvideLotHelp': 0,
@@ -172,6 +173,7 @@ class Collaboration_Graph:
         return {
             'group': the_group,
             'week': the_week,
+            'until': self.subset_until,
             'activeUsers': len(degrees),
             'isolatedUsers': number_of_isolated_users,
             'usersProvideLotHelp': number_of_users_give_lot_help,
@@ -223,7 +225,7 @@ class Collaboration_Graph:
 
         # Save as PDF
         if self.save_plot:
-            output_file = os.path.join(output_path, f"group-graphs/{project_name}-{self.semester}-05-group-graph-{group_id}.pdf")
+            output_file = os.path.join(output_path, f"group-graphs/{project_name}-{self.semester}-{self.period_split_interval}-{self.subset_until}-05-group-graph-{group_id}.pdf")
             plt.savefig(output_file, format="pdf", bbox_inches="tight")
 
         # Show plot (optional)
@@ -282,12 +284,10 @@ class Collaboration_Graph:
 
         # Prepare output
         graph_measures = pd.DataFrame(graph_measures_list)
+        
         if save_output:
             self.save_data(graph_measures, 'group-graph-measures.csv')
-            
         
-        graph_measures['until'] = self.subset_until
-
         return graph_measures
     
 

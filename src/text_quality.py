@@ -25,11 +25,12 @@ class Preprocess_Text_Quality:
     def __init__(self, semester):
         self.semester = semester
         self.tq = Text_Quality()
+        self.period_split_interval = 0
 
-    def split_text_progression_by_threshold(self, all_text, semester, start_date, end_date, threshold_type = 'days', group_column="group_id"):
+    def split_text_progression_by_threshold(self, all_text, semester, start_date, end_date, period_split_interval = 'days', group_column="group_id"):
         """..."""
         es = Extract_Easy_Sync(semester, None)
-        date_thresholds = es.generate_observation_times(start_date, end_date, threshold_type)
+        date_thresholds = es.generate_observation_times(start_date, end_date, period_split_interval)
         #print(date_thresholds)
         
         df1 = pd.DataFrame(all_text)
@@ -41,7 +42,7 @@ class Preprocess_Text_Quality:
 
         # Initialize the new column with False
         df1['is_first_above_threshold'] = False
-        df1['threshold_type'] = threshold_type
+        df1['period_split_interval'] = period_split_interval
         
         # Iterate through groups and check for the first occurrence above any threshold
         for index, group_df in df1.groupby(group_column):
@@ -65,29 +66,65 @@ class Preprocess_Text_Quality:
 
 
     def determine_text_quality_from_csv(self, df_text_raw):
-        """..."""
+        """Deprecated"""
         test = self.tq.run('test test test')
-        text_quality_results = pd.DataFrame(columns=['group_id', 'pad_id', 'timestamp', 'threshold_type'] + [(k) for k, v in test.items()] + ['text'])
+        text_quality_results = pd.DataFrame(columns=['group_id', 'pad_id', 'timestamp', 'period_split_interval'] + [(k) for k, v in test.items()] + ['text'])
         i=0
         for row in df_text_raw.itertuples():
             if(row.text != '' or row.text== None):
                 qs_result = self.tq.run(row.text) # FixMe .replace('\n','')
-                text_quality_results.loc[i] = [row.group_id] + [row.pad_id] + [row.timestamp] + [row.threshold_type] + [(v) for k, v in qs_result.items()]  + [row.text.replace('\n',' ')]
+                text_quality_results.loc[i] = [row.group_id] + [row.pad_id] + [row.timestamp] + [row.period_split_interval] + [(v) for k, v in qs_result.items()]  + [row.text.replace('\n',' ')]
                 i=i+1
 
         text_quality_results.to_csv(
-                    f'{output_path}/{project_name}-{self.semester}-02.2-text-quality', 
+                    f'{output_path}/{project_name}-{self.semester}-02.2xxx-text-quality', 
                     index=False,
                     quotechar='"'
                     )
         return text_quality_results
     
 
-    def determine_text_quality_from_files(self, threshold_type='days'):
+    def determine_text_quality_from_files(self, period_split_interval='days'):
+        """Optimized function for processing text files"""
+        
+        self.period_split_interval = period_split_interval
+        print('Processing text quality from files...')
+
+        test_keys = list(self.tq.run('test test test').keys())
+        columns = ['group_id', 'pad_id', 'timestamp', 'period_split_interval'] + test_keys + ['text']
+
+        results = []  # Store results before DataFrame conversion
+
+        folder = Path(f'{output_path}text/')  
+        for txt_file in folder.glob("*.txt"):
+            with txt_file.open("r", encoding="utf-8") as file:
+                content = file.read().replace('\n', ' ')  # Read and clean text
+                
+                split_file_name = txt_file.stem.split('-')  # No need for `.name.split()`
+                if len(split_file_name) > 4:
+                    semester, group_id, pad_id, timestamp = split_file_name[1:5]
+
+                    if self.semester == semester:
+                        text_quality = self.tq.run(content)
+                        results.append([group_id, pad_id, timestamp, period_split_interval] + list(text_quality.values()) + [content])
+
+        # Convert to DataFrame in one step
+        text_quality_results = pd.DataFrame(results, columns=columns)
+
+        # Save to CSV
+        self.save_data(text_quality_results, 'text-features.csv')
+
+        return text_quality_results
+
+
+
+    def determine_text_quality_from_files_old(self, period_split_interval='days'):
         """..."""
+        self.period_split_interval = period_split_interval
+        print('determine_text_quality_from_files')
         test = self.tq.run('test test test')
-        text_quality_results = pd.DataFrame(columns=['group_id', 'pad_id', 'timestamp', 'threshold_type'] + [(k) for k, v in test.items()] + ['text'])
-        #file_path = f'{output_path}text/{project_name}-{self.semester}-{group_id}-{pad_name}-{math.floor(timestamp)}.txt'
+        text_quality_results = pd.DataFrame(columns=['group_id', 'pad_id', 'timestamp', 'period_split_interval'] + [(k) for k, v in test.items()] + ['text'])
+        
         folder = Path(f'{output_path}text/')  # Convert to Path object
         i=0
         for txt_file in folder.glob("*.txt"):
@@ -100,27 +137,35 @@ class Preprocess_Text_Quality:
                     group_id = split_file_name[2]
                     pad_id = split_file_name[3]
                     timestamp = split_file_name[4]
-                    threshold_type = threshold_type
+                    period_split_interval = self.period_split_interval
 
                     qs_result = self.tq.run(content)
                     
                     if self.semester == semester:
-                        text_quality_results.loc[i] = [group_id] + [pad_id] + [timestamp] + [threshold_type] + [(v) for k, v in qs_result.items()]  + [content.replace('\n',' ')]
+                        #text = content.replace('\n',' ')
+                        text = ''
+                        text_quality_results.loc[i] = [group_id] + [pad_id] + [timestamp] + [self.period_split_interval] + [(v) for k, v in qs_result.items()] + [text]
                         i=i+1
 
-        text_quality_results.to_csv(
-            f'{output_path}/{project_name}-{self.semester}-02.2-text-quality', 
-            index=False,
-            quotechar='"'
-            )
+        self.save_data(text_quality_results, 'text-features.csv')
         return text_quality_results
     
-    
-        
+
+    def save_data(self, df, filename):
+        file_path = f'{output_path}/{project_name}-{self.semester}-{self.period_split_interval}-08-{filename}'
+        df.to_csv(
+            file_path,
+            index=False,
+            mode='a',
+            quotechar='"',
+            header=not os.path.exists(file_path)
+        )
 
 
 class Text_Quality:
-
+    """
+    ...
+    """
     def __init__(self):
         self.language = 'de' # de?
         self.language_long = 'english' # de?
@@ -208,7 +253,7 @@ class Text_Quality:
         pos_tags['proportion_symbol'] = pos_tags.pop('pos_prop_SYM')
         pos_tags['proportion_verb'] = pos_tags.pop('pos_prop_VERB')
         pos_tags['proportion_others'] = pos_tags.pop('pos_prop_X')
-        print(pos_tags)
+        #print(pos_tags)
         return simple_measures | pos_tags
         
 

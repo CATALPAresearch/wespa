@@ -1,4 +1,5 @@
 data/*
+output/*
 .pytes_cache
 src/trash.py
 __pycache__

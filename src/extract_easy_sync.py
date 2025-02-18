@@ -14,9 +14,10 @@ from .util import print_all_output
 class Extract_Easy_Sync:
     global print_all_output
     
-    def __init__(self,semester, time_breaks):
+    def __init__(self,semester, time_breaks, period_split_interval=0):
         self.semester = semester
         self.time_breaks = time_breaks
+        self.period_split_interval = period_split_interval
         self.ttext = ''
         self.tmp_pad_id = ''
         
@@ -26,6 +27,7 @@ class Extract_Easy_Sync:
         self.is_reconstructing_text = False
         self.add_chars_done = True
         print_all_output = True
+        
         
 
     def convertChangsetBase36ToInt(self, clean_source):
@@ -223,7 +225,7 @@ class Extract_Easy_Sync:
 
         # save current text
         if self.is_reconstructing_text==True:
-            #self.save_reconstructed_text(timestamp, group_id, pad_id)
+            self.save_reconstructed_text(timestamp, group_id, pad_id)
             pass    
             
         # return values
@@ -272,8 +274,8 @@ class Extract_Easy_Sync:
             ]
         if tmp_timebreak[tmp_timebreak['timestamp']==timestamp].shape[0] > 0:
             self.tmp_timestamp = timestamp
-            pad_name = str(pad_id).replace('$','xxxxx')
-            file_path = f'{output_path}text/{project_name}-{self.semester}-{group_id}-{pad_name}-{math.floor(timestamp)}.txt'
+            pad_name = str(pad_id).replace('$','xxxx')
+            file_path = f'{output_path}text/{project_name}-{self.semester}-{group_id}-{pad_name}-{self.period_split_interval}-{math.floor(timestamp)}.txt'
             with open(file_path, 'w') as f:
                 f.write(self.ttext)
         
@@ -298,14 +300,14 @@ class Extract_Easy_Sync:
             """
 
 
-    def generate_observation_times(self, start, end, threshold_type):
+    def generate_observation_times(self, start, end, period_split_interval):
         """Generates an array of observation times within a time range for a given delta of hours, days or weeks"""
         self.tmp_timestamp = start.timestamp()
         self.current_time_threshold = start.timestamp()
         start_date = start.timestamp()        
         end_date = end.timestamp()
 
-        match threshold_type:
+        match period_split_interval:
             case "hours":
                 timestamps = np.array([(start_date + timedelta(hours=i)).timestamp() for i in range((end - start).days*24 + 1)])
             case "days":
