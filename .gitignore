@@ -3,3 +3,4 @@ output/*
 .pytes_cache
 src/trash.py
 __pycache__
+src/easysync_py
