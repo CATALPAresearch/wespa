@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 import numpy as np
 from src.util import prnt
@@ -5,8 +6,9 @@ from src.util import print_all_output
 
 class Extract_Sessions:
 
-    def __init__(self, semester):
+    def __init__(self, semester, period_split_interval=0):
         self.semester = semester
+        self.period_split_interval = period_split_interval
         pass
 
     def load_and_combine_df(self):

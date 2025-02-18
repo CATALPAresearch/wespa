@@ -1,7 +1,7 @@
-import networkx as nx
-import matplotlib.pyplot as plt
 import os
 import random
+import networkx as nx
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
@@ -12,11 +12,13 @@ from .util import print_all_output
 
 class Collaboration_Graph:
 
-    def __init__(self, semester):
+    def __init__(self, semester, period_split_interval=0):
         self.semester = semester
+        self.period_split_interval = period_split_interval
         self.save_plot = False
         self.save_outpu = False
         self.show_plot = False
+        self.subset_until = 0
 
     def get_moodle_author_id(author_id):
         # FixMe
@@ -43,7 +45,7 @@ class Collaboration_Graph:
                 mat[row_index, col_index] += 1
 
             if pd.notna(author) and pd.notna(right_neighbor) and right_neighbor != 0 and right_neighbor != author:
-                print(right_neighbor, author, len(student_index))
+                #print(right_neighbor, author, len(student_index))
                 row_index = student_index[author]
                 col_index = student_index[right_neighbor]
                 mat[row_index, col_index] += 1
@@ -237,20 +239,21 @@ class Collaboration_Graph:
         # Step 2: Make a dry run for one group
         # Example:
         example_group = random.choice(all_groups)
-        print('Example group '+ str(example_group))
+        #print('Example group '+ str(example_group))
         df_cohesion_net = author_relations[author_relations['group'] == example_group]
-        print('Cohesion_net')
-        print(df_cohesion_net)
+        #print('Cohesion_net')
+        #print(df_cohesion_net)
         plotgr = self.get_cohesion_graph(df_cohesion_net)
-        print('Graph')
-        print(plotgr)
+        #print('Graph')
+        #print(plotgr)
         #plot_graph_network(plotgr, example_group)
         measure = pd.DataFrame([self.get_group_graph_measures(plotgr, example_group)]).T
-        print(measure)
+        #print(measure)
 
 
     def create_graph_for_all_groups(self, author_relations, subset_until=0, save_plot= False, save_output= False, show_plot=False):
         """Iterate over all groups to build the graph and calculate the measures"""
+        self.subset_until = subset_until
         self.save_plot = save_plot
         self.save_outpu = save_output
         self.show_plot = show_plot
@@ -280,11 +283,10 @@ class Collaboration_Graph:
         # Prepare output
         graph_measures = pd.DataFrame(graph_measures_list)
         if save_output:
-            output_file = os.path.join(output_path, f'{project_name}-{self.semester}-05-group-graph-measures.csv')
-            graph_measures.to_csv(output_file, index=False)
-            print(f"Graph measures saved to {output_file}")
+            self.save_data(graph_measures, 'group-graph-measures.csv')
+            
         
-        graph_measures['until'] = subset_until
+        graph_measures['until'] = self.subset_until
 
         return graph_measures
     
@@ -298,14 +300,8 @@ class Collaboration_Graph:
 
         # Process each group
         for group in all_groups:
-            print(group)
-            #if group > 4330:
-            #    continue  # Skip groups greater than 4330
-            
             g = self.get_cohesion_graph(author_relations[author_relations['group'] == group])
-            
             nodes = [{'id': int(v), 'group': 1} for v in g.nodes()]
-            
             edges = []
             if g.number_of_edges() > 0:
                 for u, v, data in g.edges(data=True):
@@ -329,7 +325,20 @@ class Collaboration_Graph:
                 with open(json_file, 'w') as f:
                     json.dump(output, f, indent=4)
                 
-                print(f"JSON file saved for group {group}: {json_file}")
+                #print(f"JSON file saved for group {group}: {json_file}")
             else:
-                print(str(output))
+                #print(str(output))
+                pass
+
+
+    def save_data(self, df, filename):
+        """ Save data to CSV file"""
+        file_path = f'{output_path}/{project_name}-{self.semester}-{self.period_split_interval}-07-{filename}'
+        df.to_csv(
+            file_path, 
+            index=False,
+            quotechar='"',
+            header = not os.path.exists(file_path), #False if self.subset_until != 0 else True,
+            mode = 'a' if self.subset_until != 0 else 'w'
+            )  
 

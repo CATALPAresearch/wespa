@@ -274,7 +274,6 @@ class Extract_Easy_Sync:
             self.tmp_timestamp = timestamp
             pad_name = str(pad_id).replace('$','xxxxx')
             file_path = f'{output_path}text/{project_name}-{self.semester}-{group_id}-{pad_name}-{math.floor(timestamp)}.txt'
-            print(file_path)
             with open(file_path, 'w') as f:
                 f.write(self.ttext)
         
@@ -297,21 +296,6 @@ class Extract_Easy_Sync:
                 header = not os.path.exists(file_path)
             )
             """
-
-
-    def remove_line_at_char_position(self, text, char_index):
-        """... needs testing"""
-        lines = text.splitlines(keepends=True)  # Preserve line breaks
-        char_count = 0  # Track character count across lines
-
-        for i, line in enumerate(lines):
-            char_count += len(line)  # Increment with the length of the line
-            if char_index < char_count:  # If the char_index falls in this line
-                #print('ping')
-                del lines[i]  # Remove the entire line
-                break
-        
-        return "".join(lines)  # Join the remaining lines
 
 
     def generate_observation_times(self, start, end, threshold_type):
@@ -376,10 +360,12 @@ class Extract_Easy_Sync:
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
+        file_path = f'{output_path}{project_name}-{self.semester}-02-{filename}'
         df.to_csv(
-            f'{output_path}{project_name}-{self.semester}-02-{filename}', 
+            file_path, 
             index=False,
-            quotechar='"'
+            quotechar='"',
+            header = not os.path.exists(file_path)
             )
 
 

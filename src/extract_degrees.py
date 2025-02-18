@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 
 from .settings import *
@@ -7,12 +8,15 @@ from .util import print_all_output
 
 class Extract_Degree:
 
-    def __init__(self, semester):
+    def __init__(self, semester, period_split_interval=0):
         self.semester = semester
+        self.subset_until = 0
+        self.period_split_interval = period_split_interval
 
     def summarize_individual_level(self, author_relations, subset_until=0):
         """
         """
+        self.subset_until = subset_until
         # Step 1: Summarize results per group and author
         author_relations['left_right'] = author_relations['left_neighbor'].astype(str) + '-' + author_relations['right_neighbor'].astype(str)
         author_relations['count'] = author_relations['count'].astype(float)
@@ -35,7 +39,8 @@ class Extract_Degree:
 
         # Return relevant columns
         res = author_relations_summary[['group', 'author', 'left', 'right', 'count_changesets', 'char_count']]
-        res['until'] = subset_until
+        res['until'] = self.subset_until
+        res['author'] = res['author'].astype(int)
         self.save_data(res, 'author_relations_summary.csv')
         return res
 
@@ -43,6 +48,7 @@ class Extract_Degree:
     def extract_degree(self, author_relations_summary, subset_until=0):
         """
         """
+        self.subset_until = subset_until
         # Step 1: Compute degrees
         degrees = author_relations_summary.copy()
         prnt('step 1:'+ str( degrees.shape))
@@ -103,7 +109,7 @@ class Extract_Degree:
         prnt(indegree_right['indegree_r'])
         # Step 4: Combine left and right indegrees
         indegree = pd.merge(indegree_left, indegree_right, on='author', how='outer').fillna(0)
-        print(indegree['indegree_r'])
+        #print(indegree['indegree_r'])
         indegree['indegree_count'] = indegree['indegree_l'] + indegree['indegree_r']
         indegree['indegree_chars'] = indegree['indegree_l_chars'] + indegree['indegree_r_chars']
         prnt('step 9:'+ str( indegree.shape))
@@ -126,12 +132,13 @@ class Extract_Degree:
         author_degrees.sort_values(by='outdegree_count', ascending=False)
         prnt('step 11:'+ str(author_degrees.shape))
         
-        author_degrees['until'] = subset_until
+        author_degrees['until'] = self.subset_until
         #print(author_degrees)
         return author_degrees
     
 
     def map_to_group(self, df_textchanges, author_degrees, subset_until=0):
+        self.subset_until = subset_until
         """
         """
         #print('map')
@@ -160,16 +167,20 @@ class Extract_Degree:
         # Step 5: Sort the results
         authordegrees = authordegrees.sort_values(by='outdegree_count', ascending=False)
         prnt('step 4' + str(authordegrees.shape))
-        authordegrees['until'] = subset_until
+        authordegrees['until'] = self.subset_until
+        authordegrees['author'] = authordegrees['author'].astype(int)
         self.save_data(authordegrees, 'author-degrees.csv')
         return authordegrees
     
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
+        file_path = f'{output_path}/{project_name}-{self.semester}-{self.period_split_interval}-06-{filename}'
         df.to_csv(
-            f'{output_path}/{project_name}-{self.semester}-04-{filename}', 
+            file_path, 
             index=False,
-            quotechar='"'
+            quotechar='"',
+            header = not os.path.exists(file_path), # False if self.subset_until != 0 else True,
+            mode = 'a' if self.subset_until != 0 else 'w'
             )  
 
