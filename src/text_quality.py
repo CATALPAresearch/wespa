@@ -1,5 +1,6 @@
 from collections import Counter
 import json
+import os
 import re
 from pathlib import Path
 import textstat
@@ -84,7 +85,7 @@ class Preprocess_Text_Quality:
         return text_quality_results
     
 
-    def determine_text_quality_from_files(self, period_split_interval='days'):
+    def determine_text_quality_from_files(self, period_split_interval='days', prefix=''):
         """Optimized function for processing text files"""
         
         self.period_split_interval = period_split_interval
@@ -96,17 +97,22 @@ class Preprocess_Text_Quality:
         results = []  # Store results before DataFrame conversion
 
         folder = Path(f'{output_path}text/')  
+        number_of_files = len(list(folder.glob("*.txt")))
+        i = 0
         for txt_file in folder.glob("*.txt"):
-            with txt_file.open("r", encoding="utf-8") as file:
-                content = file.read().replace('\n', ' ')  # Read and clean text
-                
-                split_file_name = txt_file.stem.split('-')  # No need for `.name.split()`
-                if len(split_file_name) > 4:
-                    semester, group_id, pad_id, timestamp = split_file_name[1:5]
+            i = i + 1
+            if str(txt_file.name).startswith(prefix): 
+                with txt_file.open("r", encoding="utf-8") as file:
+                    print(f'process file {i}/{number_of_files}: {file.name}')
+                    content = file.read().replace('\n', ' ')  # Read and clean text
+                    
+                    split_file_name = txt_file.stem.split('-')  # No need for `.name.split()`
+                    if len(split_file_name) > 4:
+                        semester, group_id, pad_id, timestamp = split_file_name[1:5]
 
-                    if self.semester == semester:
-                        text_quality = self.tq.run(content)
-                        results.append([group_id, pad_id, timestamp, period_split_interval] + list(text_quality.values()) + [content])
+                        if self.semester == semester:
+                            text_quality = self.tq.run(content)
+                            results.append([group_id, pad_id, timestamp, period_split_interval] + list(text_quality.values()) + [content])
 
         # Convert to DataFrame in one step
         text_quality_results = pd.DataFrame(results, columns=columns)
@@ -117,9 +123,9 @@ class Preprocess_Text_Quality:
         return text_quality_results
 
 
-
+    """
     def determine_text_quality_from_files_old(self, period_split_interval='days'):
-        """..."""
+        
         self.period_split_interval = period_split_interval
         print('determine_text_quality_from_files')
         test = self.tq.run('test test test')
@@ -149,7 +155,7 @@ class Preprocess_Text_Quality:
 
         self.save_data(text_quality_results, 'text-features.csv')
         return text_quality_results
-    
+        """
 
     def save_data(self, df, filename):
         file_path = f'{output_path}/{project_name}-{self.semester}-{self.period_split_interval}-08-{filename}'
@@ -177,8 +183,8 @@ class Text_Quality:
         #nltk.download('wordnet')
     
     def init_spacy(self, text, model='de_core_news_md'):
-        #nlp = spacy.load(model)#de_dep_news_trf de_core_news_md ,en_core_web_md, de_core_news_sm, de_dep_news_trf
-        nlp = de_core_news_sm.load()
+        nlp = spacy.load(model)#de_dep_news_trf de_core_news_md ,en_core_web_md, de_core_news_sm, de_dep_news_trf
+        #nlp = de_core_news_sm.load()
         nlp.max_length = 3000000
         nlp.add_pipe('textdescriptives/all')
         self.doc = nlp(text)
