@@ -2,6 +2,7 @@
 
 
 # todo
+* Optimize: extract_neigbors which eats up most of the processing time
 * Anforderung von Jennifer:
     Wir brauchen für das WS 23/24 auf individueller Ebene 
     - Degree Centrality 

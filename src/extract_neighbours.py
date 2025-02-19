@@ -84,9 +84,6 @@ class Extract_Neighbours:
                     #    ])
                     char_authors = np.delete(char_authors, np.s_[start_pos - text_length : start_pos])
 
-
-                    
-
                 # Append result to pad_changes list
                 pad_changes.append([group_id, pad_id, author, left_neighbor, right_neighbor, text_length])
 
