@@ -17,6 +17,7 @@ import nltk
 from nltk import word_tokenize
 from nltk.corpus import wordnet
 import pandas as pd
+import numpy as np
 
 from .extract_easy_sync import Extract_Easy_Sync
 from .settings import *
@@ -106,13 +107,18 @@ class Preprocess_Text_Quality:
                     print(f'process file {i}/{number_of_files}: {file.name}')
                     content = file.read().replace('\n', ' ')  # Read and clean text
                     
-                    split_file_name = txt_file.stem.split('-')  # No need for `.name.split()`
-                    if len(split_file_name) > 4:
-                        semester, group_id, pad_id, timestamp = split_file_name[1:5]
+                    split_file_name = txt_file.stem.split('-')  # `.stem` avoids ".txt"
+                    if len(split_file_name) < 5:
+                        continue  # Skip improperly named files
+                    
+                    semester, group_id, pad_id, timestamp = split_file_name[1:5]
 
-                        if self.semester == semester:
-                            text_quality = self.tq.run(content)
-                            results.append([group_id, pad_id, timestamp, period_split_interval] + list(text_quality.values()) + [content])
+                    # Process only relevant semester
+                    if self.semester != semester:
+                        continue
+                    
+                    text_quality = self.tq.run(content)
+                    results.append([group_id, pad_id, timestamp, period_split_interval] + list(text_quality.values()) + [content])
 
         # Convert to DataFrame in one step
         text_quality_results = pd.DataFrame(results, columns=columns)
@@ -173,9 +179,10 @@ class Text_Quality:
     ...
     """
     def __init__(self):
-        self.language = 'de' # de?
-        self.language_long = 'english' # de?
-        self.language_country = 'de-DE' #'en-US'
+        self.language = 'de'
+        self.language_long = 'german'
+        self.language_country = 'de-DE'
+        self.nlp = None  # Lazy loading Spacy Model
         
         # FixMe Check whether the following nltk files have been downloaded already
         #nltk.download('punkt_tab')
@@ -183,14 +190,53 @@ class Text_Quality:
         #nltk.download('wordnet')
     
     def init_spacy(self, text, model='de_core_news_md'):
-        nlp = spacy.load(model)#de_dep_news_trf de_core_news_md ,en_core_web_md, de_core_news_sm, de_dep_news_trf
-        #nlp = de_core_news_sm.load()
-        nlp.max_length = 3000000
-        nlp.add_pipe('textdescriptives/all')
-        self.doc = nlp(text)
+        """Load Spacy Model Only Once to Save Memory"""
+        if self.nlp is None:
+            self.nlp = spacy.load(model)
+            self.nlp.add_pipe('textdescriptives/all')
+            self.nlp.max_length = 3000000
+        self.doc = self.nlp(text)
+
+
+    def compute_quantitative_measures(self, text):
+        """Compute basic quantitative text measures with optimized processing."""
+        tokens = nltk.word_tokenize(text)
+        num_words = len(tokens) or 1  # Avoid division by zero
+        num_lines = max(len(text.split('\n')), 1)
+
+        pos_tags = self.doc._.pos_proportions
+        pos_tags['proportion_adjective'] = pos_tags.pop('pos_prop_ADJ')
+        pos_tags['proportion_adposition'] = pos_tags.pop('pos_prop_ADP')
+        pos_tags['proportion_adverbs'] = pos_tags.pop('pos_prop_ADV')
+        pos_tags['proportion_adjective'] = pos_tags.pop('pos_prop_AUX')
+        pos_tags['proportion_conjunctions'] = pos_tags.pop('pos_prop_CCONJ')
+        pos_tags['proportion_determiner'] = pos_tags.pop('pos_prop_DET')
+        pos_tags['proportion_interjection'] = pos_tags.pop('pos_prop_INTJ')
+        pos_tags['proportion_noun'] = pos_tags.pop('pos_prop_NOUN')
+        pos_tags['proportion_numeral'] = pos_tags.pop('pos_prop_NUM')
+        pos_tags['proportion_particle'] = pos_tags.pop('pos_prop_PART')
+        pos_tags['proportion_pronoun'] = pos_tags.pop('pos_prop_PRON')
+        pos_tags['proportion_proper_noun'] = pos_tags.pop('pos_prop_PROPN')
+        pos_tags['proportion_punctuation'] = pos_tags.pop('pos_prop_PUNCT')
+        pos_tags['proportion_subordinating_conjunction'] = pos_tags.pop('pos_prop_SCONJ')
+        pos_tags['proportion_symbol'] = pos_tags.pop('pos_prop_SYM')
+        pos_tags['proportion_verb'] = pos_tags.pop('pos_prop_VERB')
+        pos_tags['proportion_others'] = pos_tags.pop('pos_prop_X')
+        #print(pos_tags)
+        
+        return {
+            "char_count": textstat.char_count(text, ignore_spaces=False),
+            "letter_count": textstat.letter_count(text, ignore_spaces=True),
+            "syllable_count": textstat.syllable_count(text),
+            "word_count": num_words,
+            "sentence_count": textstat.sentence_count(text),
+            "line_count": num_lines,
+            "stop_words_ratio": self.doc._.quality.n_stop_words.value / num_words,
+            "bullet_points_ratio": self.doc._.quality.proportion_bullet_points.value / num_lines
+        } | pos_tags
 
         
-    def compute_quantitative_measures(self, corpus):
+    def compute_quantitative_measures_old(self, corpus):
         """        
         ADJ: adjective, e.g. big, old, green, incomprehensible, first
         ADP: adposition, e.g. in, to, during
@@ -262,45 +308,77 @@ class Text_Quality:
         #print(pos_tags)
         return simple_measures | pos_tags
         
-
-    def compute_readability(self, text):
-        """Evaluates how easily a reader can understand the text, often using metrics like the Flesch-Kincaid Grade Level."""
-        flesch_kincaid_grade = textstat.flesch_kincaid_grade(text)
-        return {"readbility": flesch_kincaid_grade / 100} 
     
-    def compute_gramaticality(self, text):
+    def compute_readability(self, text):
+        """Compute readability score."""
+        return {"readability": textstat.flesch_kincaid_grade(text) / 100}
+    
+
+    def compute_grammmaticality(self, text):
         """Assesses the correctness of grammar in the text."""
         tool = LanguageTool(self.language_country)
-        matches = tool.check(text)
-        grammar_errors = len(matches)
-        return {"grammar_errors": grammar_errors}
-    
-    def compute_coherence(self, text): #TODO/Remove
-        """Evaluates the logical flow and connectivity between sentences and paragraphs."""
-        #doc = self.nlp(text)#, disable = ['ner', 'parser'])
-        coherence = self.doc._.coherence
-        return coherence
+        number_of_words = 0
+        counter = Counter(word_tokenize(text))
+        for t in counter:
+            number_of_words = number_of_words + counter[t] 
+        number_of_words = 1 if number_of_words == 0 else number_of_words
+        return {
+            "grammar_errors": len(tool.check(text)),
+            "grammar_error_ratio": len(tool.check(text)) / number_of_words
+            }
 
 
-    def compute_lexic_diversity(self, text):
-        """Assesses the range of vocabulary used in the text."""
-        #nltk.download('punkt')
+    def compute_lexical_diversity(self, text):
+        """Compute lexical diversity of the text."""
         words = nltk.word_tokenize(text)
-        if len(words)==0:
-            return {"lexical_diversity": 0}    
         unique_words = set(words)
-        lexical_diversity = len(unique_words) / len(words)
-        return {"lexical_diversity": lexical_diversity}
-    
+        return {"lexical_diversity": len(unique_words) / len(words)} if words else {"lexical_diversity": 0}
+
 
     def compute_text_complexity(self, text):
         """Analyzes the complexity of the text, including syntactic and semantic aspects."""
         school_grade_level = textstat.text_standard(text) # en only
-        school_grade_score = textstat.dale_chall_readability_score(text) / 10 # ? correct
-        return {"text_complexity": school_grade_score}
+        return {"text_complexity": textstat.dale_chall_readability_score(text) / 10} # ? correct
+
+    
+    def compute_duplicate_lines(self, text):
+        """Duplicate lines character fraction: Fraction of characters in a document which are contained within duplicate lines."""
+        lines = text.split('\n')
+        unique_lines = set(lines)
+        return {"duplicate_lines_ratio": len(unique_lines) / len(lines) if lines else 0}
+
+    
+    def compute_transitional_words(self, text):
+        """Find all transitional word. These worde indicate a strong cohesion and thus argumentation"""
+        transitional_words = [
+            "weil", "da", "denn", "deshalb", "deswegen", "darum", "daher", "folglich", "infolgedessen", "aus diesem Grund", "somit", "also", "dadurch", "demnach", "indessen", "indes", "mittlerweile", "unterdessen", "inzwischen", "trotzdem", "dennoch", "allerdings", "immerhin", "nichtsdestotrotz", "jedoch", "wohingegen", "andererseits", "auf der einen Seite", "auf der anderen Seite", "einerseits", "andererseits", "währenddessen", "während", "zudem", "außerdem", "ferner", "obendrein", "überdies", "überdies hinaus", "nicht nur", "sondern auch", "sowohl als auch", "ebenso", "gleichermaßen", "vergleichsweise", "analog dazu", "ähnlich", "entsprechend", "im Vergleich dazu", "genauso", "insbesondere", "vor allem", "namentlich", "nämlich", "explizit", "das heißt", "sprich", "mit anderen Worten", "beziehungsweise", "genauer gesagt", "insbesondere", "speziell", "beispielweise", "etwa", "zum Beispiel", "unter anderem", "so etwa", "so zum Beispiel"," wie etwa", "vornehmlich", "in erster Linie", "vorrangig", "erstens", "zweitens", "drittens", "abschließend", "letztendlich", "schließlich", "zuletzt", "alles in allem", "zusammenfassend", "kurz gesagt", "resümierend", "folgerichtig", "abschließend betrachtet", "unter dem Strich", "zu guter Letzt", "abschließend", "schließlich", "letztendlich", "um es zusammenzufassen", "kurzum", "mit einem Wort", "beispielsweise", "z.B.", "z. B.", "bspw."
+        ]
+        pattern = re.compile(r'\b(?:' + '|'.join(transitional_words) + r')\b', re.IGNORECASE)
+        return {"transitional_words": len(pattern.findall(text))} #TODO normalise 0..1
+
+
+    def compute_duplicate_paragraphs(self, text):
+        """Duplicate paragraphs character fraction: Fraction of characters in a document which are contained within duplicate paragraphs."""
+        nonewlines = text.strip('\n')
+        split_text = re.compile(r"\n{2,}").split(nonewlines)
+        #paragraphs = [p + '\n' for p in  split_text if p.strip()]
+        #print(len(split_text), len(set(split_text)), split_text)
+        unique_paragraphs = set(split_text)
+        return {"duplicate_paragraphs_ratio": (len(unique_paragraphs) / len(split_text) if split_text else 1) }
+    
+    
+    def compute_coherence(self):
+        """Evaluates the logical flow and connectivity between sentences and paragraphs."""
+        #doc = self.nlp(text)#, disable = ['ner', 'parser'])
+        coherence = self.doc._.coherence
+        return {
+            'first_order_coherence': coherence['first_order_coherence'] if coherence['first_order_coherence'] > 0 else 0, 
+            'second_order_coherence': coherence['second_order_coherence'] if coherence['second_order_coherence'] > 0 else 0
+            }
     
 
-    def compute_consistency(self, corpus): #todo/remove
+    #TODO
+    def compute_consistency(self, corpus): 
         """Evaluates how consistently the text adheres to its main topics."""
         vectorizer = TfidfVectorizer(stop_words=self.language_long)
         X = vectorizer.fit_transform(corpus)
@@ -309,8 +387,8 @@ class Text_Quality:
         topic_words = nmf.components_
         return topic_words
     
-
-    def compute_semantic_similarity(self, text_student, text_assignment): #todo
+    # TODO
+    def compute_semantic_similarity(self, text_student, text_assignment): 
         """Evaluate how similar the student text is to assignment text"""
         model = SentenceTransformer('all-MiniLM-L6-v2')
         sentences = [text_student, text_assignment]
@@ -318,53 +396,13 @@ class Text_Quality:
         similarity = util.pytorch_cos_sim(embeddings[0], embeddings[1])
         return similarity
     
-
-    def compute_information_desity(self, text): #TODO duplicate?
-        """Evaluates the amount of information conveyed in the text relative to its length."""
-        words = nltk.word_tokenize(text)
-        if len(words)==0:
-            return 0
-        information_density = len(set(words)) / len(words)
-        return information_density
-    
-
-    def compute_duplicate_lines(self, text):
-        """Duplicate lines character fraction: Fraction of characters in a document which are contained within duplicate lines."""
-        nlp = German()
-        nlp.max_length = 3000000
-        nlp.add_pipe('sentencizer')
-        doc = nlp(text)#, disable = ['ner', 'parser'])
-        sentences = [sent.text.strip() for sent in doc.sents]
-        if len(sentences)==0:
-            return {"duplicate_lines": 0}
-        if len(sentences)==1:
-            return {"duplicate_lines": 1}     
-        unique_sentences = set(sentences)
-        return {"duplicate_lines": len(unique_sentences)/len(sentences)} 
-
-
-    def compute_duplicate_paragraphs(self, text): #TODO
-        """Duplicate paragraphs character fraction: Fraction of characters in a document which are contained within duplicate paragraphs."""
-        #self.doc = self.nlp(text)#, disable = ['ner', 'parser'])
-        duplicate_paragraphs = self.doc._.duplicate_paragraphs_chr_fraction()
-        return duplicate_paragraphs
-    
-
-    def compute_transitional_words(self, text):
-        """Find all transitional word. These worde indicate a strong cohesion and thus argumentation"""
-        transitional_words = [
-            "weil", "da", "denn", "deshalb", "deswegen", "darum", "daher", "folglich", "infolgedessen", "aus diesem Grund", "somit", "also", "dadurch", "demnach", "indessen", "indes", "mittlerweile", "unterdessen", "inzwischen", "trotzdem", "dennoch", "allerdings", "immerhin", "nichtsdestotrotz", "jedoch", "wohingegen", "andererseits", "auf der einen Seite", "auf der anderen Seite", "einerseits", "andererseits", "währenddessen", "während", "zudem", "außerdem", "ferner", "obendrein", "überdies", "überdies hinaus", "nicht nur", "sondern auch", "sowohl als auch", "ebenso", "gleichermaßen", "vergleichsweise", "analog dazu", "ähnlich", "entsprechend", "im Vergleich dazu", "genauso", "insbesondere", "vor allem", "namentlich", "nämlich", "explizit", "das heißt", "sprich", "mit anderen Worten", "beziehungsweise", "genauer gesagt", "insbesondere", "speziell", "beispielweise", "etwa", "zum Beispiel", "unter anderem", "so etwa", "so zum Beispiel"," wie etwa", "vornehmlich", "in erster Linie", "vorrangig", "erstens", "zweitens", "drittens", "abschließend", "letztendlich", "schließlich", "zuletzt", "alles in allem", "zusammenfassend", "kurz gesagt", "resümierend", "folgerichtig", "abschließend betrachtet", "unter dem Strich", "zu guter Letzt", "abschließend", "schließlich", "letztendlich", "um es zusammenzufassen", "kurzum", "mit einem Wort", "beispielsweise", "z.B.", "z. B.", "bspw."
-        ]
-        pattern = re.compile(r'\b(?:' + '|'.join(transitional_words) + r')\b', re.IGNORECASE)
-        matches = pattern.findall(text)
-        return {"transitional_words": len(matches)} #TODO normalise 0..1
-
-
-    def compute_x():#TODO
+    #TODO
+    def compute_x():
         """https://hlasse.github.io/TextDescriptives/dependencydistance.html"""
         pass
    
 
+    # old
     def get_noun_roles(self, document):
         """Extract nouns and classify them as subject, object, or other."""
         nouns = []
@@ -418,7 +456,7 @@ class Text_Quality:
 
         return chains
 
-    def compute_lexical_chains(self, text):
+    def compute_lexical_chains(self):
         """Pipeline to extract lexical chains from a text."""
         #nlp = spacy.load("de_core_news_sm")
         #doc = self.nlp(text)#, disable = ['ner', 'parser'])
@@ -444,41 +482,42 @@ class Text_Quality:
             "avg_chain_lenght": sum(chain_length)/len(chain_length) 
             }
     
+    def compute_lexical_chains_new(self):
+        """Compute lexical chains from Spacy's parsed text."""
+        nouns = [(token.text.lower(), token.dep_) for token in self.doc if token.pos_ == "NOUN"]
+        chains = {}
+        for noun, role in nouns:
+            if noun not in chains:
+                chains[noun] = []
+            chains[noun].append(role)
+        chain_lengths = [len(v) for v in chains.values() if len(v) > 1]
+        return {
+            "lexical_chains": len(chain_lengths),
+            "avg_chain_length": sum(chain_lengths) / len(chain_lengths) if chain_lengths else 0
+        }
+
+    
     
 
-    def run (self, corpus, model='de_core_news_md'):
-        """Compute and combine all indicators for a given text"""
-        text = ' '.join(corpus) # FoxMe corpus should be joined with \n but spacy breaks if linebreaks are passed. Spacy pipeline should be implemented
+    def run(self, corpus, model='de_core_news_md'):
+        """Run all text quality measures in an optimized way."""
+        text = ' '.join(corpus)
 
         self.init_spacy(text, model)
-        
-        # descriptive indicators
-        qm = self.compute_quantitative_measures(corpus) 
 
-        # indicators about the correctness
-        gc = self.compute_gramaticality(text) 
-        dl = self.compute_duplicate_lines(text)
-        #self.compute_duplicate_paragraphs(text)
-    
-        # indicators about the style
-        rb = self.compute_readability(text)
-        
-        # indicators for language use
-        ld = self.compute_lexic_diversity(text)
-        tc = self.compute_text_complexity(text)
+        measures = {}
+        measures.update(self.compute_quantitative_measures(text))
+        measures.update(self.compute_grammmaticality(text))
+        measures.update(self.compute_readability(text))
+        measures.update(self.compute_lexical_diversity(text))
+        measures.update(self.compute_text_complexity(text))
+        measures.update(self.compute_transitional_words(text))
+        measures.update(self.compute_duplicate_lines(text))
+        measures.update(self.compute_lexical_chains())
+        measures.update(self.compute_coherence())
+        measures.update(self.compute_duplicate_paragraphs(text))
 
-        # indicators for argumentation
-        tw = self.compute_transitional_words(text)
-        lc = self.compute_lexical_chains(text)
-
-        #self.compute_coherence(text)
-        #self.compute_consistency(text) 
-        #self.compute_information_desity(text)
-        
-        #self.compute_semantic_similarity(text)
-
-        res = tc | ld | rb| dl  | gc | qm | tw | lc
-        return res
+        return measures
 
         
 
