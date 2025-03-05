@@ -1,35 +1,24 @@
 # WESPA - Web Service for Etherpad Analysis
 
+## Installation
 
-# todo
-* Optimize: extract_neigbors which eats up most of the processing time
-* summarize communication data to author...csv
-* Anforderung von Jennifer:
-    Wir brauchen für das WS 23/24 auf individueller Ebene 
-    - Degree Centrality 
-    - Closeness Centrality 
-    für die Zeiträume 
-    - 30.10. - 19.11.
-    - 20.11. - 10.12.
-    - 30.10. - 10.12.
-* implement thread in the webservice
-* collect text progress by session
-* write db load  ---------- https://github.com/mburchart/cwt_import
-    Mögliche SSH-Config:
-    Host polaris
-    HostName polaris.fernuni-hagen.de
-    PreferredAuthentications publickey
-    user niels
-    IdentityFile [...]
-    LocalForward 7000 127.0.0.1:5984
+**Prerequesits**
+- Python 3.12
+- poetry
 
-    Unter Port 7000 kannst du dann die CouchDB erreichen.
-    
+## How to use WESPA for analysis
+
+- The data folder contains different database dumps of the polaris system
+- Open the analysis.ipynb and either
+  - run the processing form step 1 to step 5 or
+  - run the "All at once" blocks at the lower part of the file
+- Find the results in the output folder
+
+## How to use WESPA as a webservice
+WESPA can be used an analytics engine to process data from a etherpad database and sending the results on request.
 
 ## RQ EDM'25
-## Ideen für EDM
 - reproduce results for all datasets
-
 - Ergebnisse deskriptiv aufbereiten
   - Woran kann man eine funktionale/dysfunktionale Gruppe erkennen?
   - Ab wann lässt sich erkennen, dass eine Gruppe nicht funktioniert?
@@ -56,5 +45,5 @@
 
 
 
-# Tests
+## Unit Tests
 python -m unittest tests.test.TestClass

@@ -86,7 +86,7 @@ class Preprocess_Text_Quality:
         return text_quality_results
     
 
-    def determine_text_quality_from_files(self, period_split_interval='days', prefix=''):
+    def determine_text_quality_from_files(self, period_split_interval='days', prefix='', min_index=0, max_index=0):
         """Optimized function for processing text files"""
         
         self.period_split_interval = period_split_interval
@@ -99,9 +99,12 @@ class Preprocess_Text_Quality:
 
         folder = Path(f'{output_path}text/')  
         number_of_files = len(list(folder.glob("*.txt")))
+        max_index = number_of_files if max_index == 0 else max_index
         i = 0
         for txt_file in folder.glob("*.txt"):
             i = i + 1
+            if i < min_index or i > max_index:
+                continue
             if str(txt_file.name).startswith(prefix): 
                 with txt_file.open("r", encoding="utf-8") as file:
                     print(f'process file {i}/{number_of_files}: {file.name}')
@@ -111,11 +114,12 @@ class Preprocess_Text_Quality:
                     if len(split_file_name) < 5:
                         continue  # Skip improperly named files
                     
-                    semester, group_id, pad_id, timestamp = split_file_name[1:5]
+                    # edm25-SS2022-2020-g.kBkok7fNAuFh0t3hxxxxex_19_g_2020_6297d5eef1611-weeks-1655546506
+                    semester, group_id, pad_id, interval, timestamp = split_file_name[1:6]
 
                     # Process only relevant semester
-                    if self.semester != semester:
-                        continue
+                    #if self.semester != semester:
+                    #    continue
                     
                     text_quality = self.tq.run(content)
                     results.append([group_id, pad_id, timestamp, period_split_interval] + list(text_quality.values()) + [content])
