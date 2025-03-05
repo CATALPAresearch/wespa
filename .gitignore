@@ -1,5 +1,5 @@
-data
-output
+data/
+output/
 !data/.gitkeep
 !output/.gitkeep
 output/group-graphs/**
