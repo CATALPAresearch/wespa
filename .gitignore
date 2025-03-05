@@ -1,6 +1,8 @@
 data/*
 output/*
+output/group-graphs/**
 .pytes_cache
 src/trash.py
 __pycache__
 src/easysync_py
+*.code-workspace
