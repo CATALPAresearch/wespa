@@ -1,5 +1,7 @@
 data
 output
+!data/.gitkeep
+!output/.gitkeep
 output/group-graphs/**
 .pytes_cache
 src/trash.py
