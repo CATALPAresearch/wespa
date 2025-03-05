@@ -1,5 +1,5 @@
-data/*
-output/*
+data/**
+output/**
 output/group-graphs/**
 .pytes_cache
 src/trash.py
