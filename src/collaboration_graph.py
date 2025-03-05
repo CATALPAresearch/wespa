@@ -19,6 +19,7 @@ class Collaboration_Graph:
         self.save_outpu = False
         self.show_plot = False
         self.subset_until = 0
+        self.pseudonym=False
 
     def get_moodle_author_id(author_id):
         # FixMe
@@ -64,18 +65,59 @@ class Collaboration_Graph:
 
         user_ids = user_ids.drop(columns=['group'])
         student_mapping = dict(zip(user_ids['author'], user_ids['user']))
-
-        # Update column and row names with mapped user IDs
-        new_labels = [student_mapping.get(student, student) for student in students]
+        
+        if self.pseudonym==False:
+            student_mapping = dict((v-1,k) for k,v in student_mapping.items())
+            new_labels = student_mapping #[student_mapping.get(student) for student in students]
+        else:
+            new_labels = [student_mapping.get(student) for student in students]
+        
         
         # Create graph from adjacency matrix
         G = nx.from_numpy_array(mat, create_using=nx.DiGraph())
         
         mapping = {i: new_labels[i] for i in range(len(new_labels))}
+        
         G = nx.relabel_nodes(G, mapping)
 
         return G
 
+    def get_group_member_graph_measures(self, plotgr, the_group, the_week=0):
+        """
+        """
+        # Check if the graph has 1 or fewer edges
+        if len(plotgr.edges) <= 1:
+            return {
+                'group': the_group,
+                'week': the_week,
+                'until': self.subset_until,
+                'degree_centrality': 0,
+                'closeness_centrality': 0,
+            }
+
+        # Network measures: density and centrality
+        degree_centrality = nx.degree_centrality(plotgr)
+        closeness_centrality = nx.closeness_centrality(plotgr)
+        data = {
+            'group': the_group,
+            'week': the_week,
+            'until': self.subset_until,
+            'degree_centrality': degree_centrality,
+            'closeness_centrality': closeness_centrality,
+        }
+        df = pd.DataFrame.from_dict(data['degree_centrality'], orient='index', columns=['degree_centrality'])
+        df['closeness_centrality'] = df.index.map(data['closeness_centrality'])
+        df['author_id'] = df.index.astype(int) 
+
+        # Adding static fields
+        df['group'] = data['group']
+        df['week'] = data['week']
+        df['until'] = data['until']
+
+        # Resetting index
+        df.reset_index(drop=True, inplace=True)
+        #return df.to_dict()
+        return df
 
     def get_group_graph_measures(self, plotgr, the_group, the_week=0):
         # Check if the graph has 1 or fewer edges
@@ -103,7 +145,9 @@ class Collaboration_Graph:
                 'avgCouples': 0,
                 'loseCouples': 0,
                 'density1': 0,
-                'density2': 0
+                'density2': 0,
+                'degree_centrality': 0,
+                'closeness_centrality': 0,
             }
 
         # Degree measures
@@ -166,9 +210,11 @@ class Collaboration_Graph:
         ])
         number_of_users_give_little_help = len(help_giving[help_giving['weight'] <= help_giving_lower_threshold])
 
-        # Network density
+        # Network measures: density and centrality
         density1 = nx.density(plotgr)
         density2 = nx.density(plotgr.to_undirected())
+        degree_centrality = nx.degree_centrality(plotgr)
+        closeness_centrality = nx.closeness_centrality(plotgr)
 
         return {
             'group': the_group,
@@ -188,7 +234,9 @@ class Collaboration_Graph:
             'avgCouples': avg_couples,
             'loseCouples': lose_couples,
             'density1': density1,
-            'density2': density2
+            'density2': density2,
+            'degree_centrality': degree_centrality,
+            'closeness_centrality': closeness_centrality,
         }
 
 
@@ -247,8 +295,9 @@ class Collaboration_Graph:
         #print(df_cohesion_net)
         plotgr = self.get_cohesion_graph(df_cohesion_net)
         #print('Graph')
-        #print(plotgr)
-        #plot_graph_network(plotgr, example_group)
+        print(plotgr)
+        print(self.get_group_member_graph_measures(plotgr, example_group, the_week=self.period_split_interval))
+        self.plot_graph_network(plotgr, example_group)
         measure = pd.DataFrame([self.get_group_graph_measures(plotgr, example_group)]).T
         #print(measure)
 
@@ -265,6 +314,7 @@ class Collaboration_Graph:
             
         # Step 2: Iterate over all groups and create plot, store plot, and compute graph measures
         graph_measures_list = []
+        graph_measures_group_member_list = []
         for i, group in enumerate(all_groups):
             prnt(f'Compute graph of group {group}: {i+1}/{len(all_groups)}')
 
@@ -277,18 +327,24 @@ class Collaboration_Graph:
                 self.plot_graph_network(plotgr, group)
 
             # Compute graph measures
-            measure = self.get_group_graph_measures(plotgr, group)
+            measure_groups = self.get_group_graph_measures(plotgr, group)
+            measure_group_member = self.get_group_member_graph_measures(plotgr, group, the_week=self.period_split_interval)
 
             # Append results
-            graph_measures_list.append(measure)
+            graph_measures_list.append(measure_groups)
+            graph_measures_group_member_list.append(measure_group_member)
 
         # Prepare output
-        graph_measures = pd.DataFrame(graph_measures_list)
+        graph_measures_groups = pd.DataFrame(graph_measures_list)
+        graph_measures_group_members = pd.concat(graph_measures_group_member_list, ignore_index=True)
+        column_order = ["author_id", "group", "week", "until", "degree_centrality", "closeness_centrality"]
+        graph_measures_group_members = graph_measures_group_members[column_order]
         
         if save_output:
-            self.save_data(graph_measures, 'group-graph-measures.csv')
+            self.save_data(graph_measures_groups, 'group-graph-measures-groups.csv')
+            self.save_data(graph_measures_group_members, 'group-graph-measures-group-members.csv')
         
-        return graph_measures
+        return graph_measures_groups, graph_measures_group_members
     
 
     def create_json_graph_for_all_groups(self, author_relations, last_modified = 0, save_to_file=False):
