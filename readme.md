@@ -47,3 +47,5 @@ WESPA can be used an analytics engine to process data from a etherpad database a
 
 ## Unit Tests
 python -m unittest tests.test.TestClass
+
+git rm --cached `git ls-files -i -c --exclude-from=.gitignore`
