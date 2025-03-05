@@ -87,13 +87,24 @@ class Collaboration_Graph:
         """
         # Check if the graph has 1 or fewer edges
         if len(plotgr.edges) <= 1:
-            return {
+            data = {
                 'group': the_group,
                 'week': the_week,
                 'until': self.subset_until,
-                'degree_centrality': 0,
-                'closeness_centrality': 0,
+                'degree_centrality': {},
+                'closeness_centrality': {}
             }
+
+            df = pd.DataFrame([
+                {'author_id': int(author_id), 'degree_centrality': deg_central, 'closeness_centrality': data['closeness_centrality'].get(author_id, 0)}
+                for author_id, deg_central in data['degree_centrality'].items()
+            ])
+
+            df['group'] = the_group
+            df['week'] = the_week
+            df['until'] = self.subset_until
+
+            return df.reset_index(drop=True)
 
         # Network measures: density and centrality
         degree_centrality = nx.degree_centrality(plotgr)
@@ -108,15 +119,12 @@ class Collaboration_Graph:
         df = pd.DataFrame.from_dict(data['degree_centrality'], orient='index', columns=['degree_centrality'])
         df['closeness_centrality'] = df.index.map(data['closeness_centrality'])
         df['author_id'] = df.index.astype(int) 
-
-        # Adding static fields
         df['group'] = data['group']
         df['week'] = data['week']
         df['until'] = data['until']
 
-        # Resetting index
         df.reset_index(drop=True, inplace=True)
-        #return df.to_dict()
+        
         return df
 
     def get_group_graph_measures(self, plotgr, the_group, the_week=0):
@@ -339,7 +347,7 @@ class Collaboration_Graph:
         graph_measures_group_members = pd.concat(graph_measures_group_member_list, ignore_index=True)
         column_order = ["author_id", "group", "week", "until", "degree_centrality", "closeness_centrality"]
         graph_measures_group_members = graph_measures_group_members[column_order]
-        
+        graph_measures_group_members.columns = column_order
         if save_output:
             self.save_data(graph_measures_groups, 'group-graph-measures-groups.csv')
             self.save_data(graph_measures_group_members, 'group-graph-measures-group-members.csv')
