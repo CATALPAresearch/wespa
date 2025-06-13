@@ -1,4 +1,13 @@
-# WESPA - Web Service for Etherpad Analysis
+# <img src="./assets/wespa-icon.png" width="40"> WESPA - Web Service for Etherpad Analysis
+
+
+**TODO**
+- load data from postgres in addition to csv
+- store results in a resultsstore db, also on postgres
+  - data per user and group, considering course, course-task/pad, and time frames like weeks/days
+    - use existing descriptive features here
+  - peer review data
+  - other moodle activities? 
 
 ## Installation
 
