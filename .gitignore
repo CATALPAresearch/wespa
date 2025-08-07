@@ -9,3 +9,5 @@ src/trash.py
 __pycache__
 src/easysync_py
 *.code-workspace
+bfg-git-large-file-check.sh
+bfg.jar
