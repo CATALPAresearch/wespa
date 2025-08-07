@@ -1,7 +1,7 @@
 <img style="margin: auto; display: block;" src="./assets/wespa-icon.png" width="100">
 
 # WESPA - Web Service for Etherpad Analysis
-
+WESPA is a Python-based tool and web service tailored for analysis of Etherpad collaboration data. It supports full extraction of changesets, text reconstruction, and multi-dimensional analysis of co-editing behavior and linguistic patterns.
 
 
 <br><br>
