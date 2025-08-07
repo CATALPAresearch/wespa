@@ -1,4 +1,6 @@
-# <img src="./assets/wespa-icon.png" width="40"> WESPA - Web Service for Etherpad Analysis
+<img style="margin: auto; display: block;" src="./assets/wespa-icon.png" width="100">
+
+# WESPA - Web Service for Etherpad Analysis
 
 
 
@@ -73,7 +75,7 @@ python -m unittest tests.test.TestClass
   - run the "All at once" blocks at the lower part of the file
 - Find the results in the output folder
 
-**How to use WESPA as a webservice**
+**How to use WESPA's Analytics Engine as a webservice**
 
 WESPA can be used an analytics engine to process data from a etherpad database and sending the results on request. Run `poetry run python3.12 src/app.py`
 
