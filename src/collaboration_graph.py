@@ -4,6 +4,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import json
 
 from .settings import *
 from .util import prnt
@@ -355,9 +356,9 @@ class Collaboration_Graph:
         return graph_measures_groups, graph_measures_group_members
     
 
-    def create_json_graph_for_all_groups(self, author_relations, last_modified = 0, save_to_file=False):
+    def create_json_graph_for_all_groups(self, author_relations, last_modified = 0, save_to_file=False, target_week='week-1'):
         """Creates a file containing a JSON object describing the group cohesian graph"""
-        target_week = "week-x"  # Change as needed
+        
 
         # List of all groups
         all_groups = sorted(author_relations['group'].unique())

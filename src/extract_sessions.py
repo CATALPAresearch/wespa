@@ -48,8 +48,11 @@ class Extract_Sessions:
         df_session = df_textchanges.copy()
         #TO observe
         df_session['moodle_author_id'] = df_session['moodle_author_id'].replace([np.inf, -np.inf], np.nan, inplace=True) 
-        df_session['moodle_author_id'] = df_session['moodle_author_id'].astype(str)
-        df_session['moodle_author_id'] = df_session['moodle_author_id'].astype(int)
+        #df_session['moodle_author_id'] = df_session['moodle_author_id'].astype(str)
+        #df_session['moodle_author_id'] = df_session['moodle_author_id'].astype(int)
+        df_session['moodle_author_id'] = pd.to_numeric(df_session['moodle_author_id'], errors='coerce')
+        df_session['moodle_author_id'] = df_session['moodle_author_id'].astype('int') 
+
         pad_split = df_session['moodle_pad_id'].str.split('$', n=1, expand=True)
         df_session['moodle_pad_id'] = pad_split[0] if len(pad_split) > 0 else df_session['moodle_pad_id']
 

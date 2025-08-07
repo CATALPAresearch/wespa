@@ -1,5 +1,6 @@
 data/*
 output/*
+autobackup/*
 !data/.gitkeep
 !output/.gitkeep
 output/group-graphs/**
