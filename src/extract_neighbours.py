@@ -10,6 +10,9 @@ from .util import print_all_output
 
 
 class Extract_Neighbours:
+    """
+    Desc: xxx
+    """
     def __init__(self,semester, period_split_interval=0):
         self.semester = semester
         self.subset_until = 0

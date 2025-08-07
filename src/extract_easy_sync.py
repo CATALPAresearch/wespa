@@ -28,8 +28,6 @@ class Extract_Easy_Sync:
         self.add_chars_done = True
         print_all_output = True
         
-        
-
     def convertChangsetBase36ToInt(self, clean_source):
         """Converts the Base36 numbers in the changeset into Base10 integers"""
         operators = [':','+','-','*','=','>','<','|']

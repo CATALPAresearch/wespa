@@ -5,10 +5,7 @@ Handles three specific file types: peer_reviewanswers, peer_review_survey, and p
 """
 
 import json
-import csv
 import pandas as pd
-import ast
-from datetime import datetime
 import argparse
 import os
 
@@ -129,12 +126,8 @@ def convert_peer_review_survey(docs, output_file):
             'created': convert_timestamp(doc.get('created')),
             'modified': convert_timestamp(doc.get('modified')),
         }
-        
-       #xxxx
-        
         csv_data.append(row)
         
-    
     # Write main survey data (wide format)
     if csv_data:
         df = pd.DataFrame(csv_data)
@@ -226,6 +219,7 @@ def main():
     print(f"\n{'='*50}")
     print("Conversion complete!")
     print(f"{'='*50}")
+
 
 if __name__ == "__main__":
     main()

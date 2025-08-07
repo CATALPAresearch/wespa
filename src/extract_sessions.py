@@ -11,6 +11,7 @@ class Extract_Sessions:
         self.period_split_interval = period_split_interval
         pass
 
+
     def load_and_combine_df(self):
         """..."""
         output_path = './output'
@@ -21,8 +22,6 @@ class Extract_Sessions:
         df_chats = pd.read_csv(f'{output_path}/{project_name}-{semester}-01-data-chats.csv')
         df_scrolls = pd.read_csv(f'{output_path}/{project_name}-{semester}-01-data-scrolls.csv')
         df_textedits = pd.read_csv(f'{output_path}/{project_name}-{semester}-01-data-textedits.csv')
-
-        
 
         # select and combine
         cols = ['id','authorid', 'groupid', 'padid', 'timestamp', 'type']
@@ -43,6 +42,7 @@ class Extract_Sessions:
         df = pd.concat([df_sel_comments, df_sel_comment_replies, df_sel_chats, df_sel_scrolls, df_sel_textedits])
         return df
     
+
     def extract_sessions(self, df_textchanges):
         """..."""
         df_session = df_textchanges.copy()
