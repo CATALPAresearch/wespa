@@ -22,14 +22,14 @@ class Collaboration_Graph:
         self.subset_until = 0
         self.pseudonym=False
 
-    def get_moodle_author_id(author_id):
+    def get_moodle_user_id(moodle_user_id):
         # FixMe
-        return author_id
+        return moodle_user_id
 
     def get_cohesion_graph(self, df_cohesion_net, user_mapping='pseudomize'):
         """Create a cohesion graph"""
         # Extract unique students (authors)
-        students = df_cohesion_net['author'].drop_duplicates().tolist()
+        students = df_cohesion_net['moodle_user_id'].drop_duplicates().tolist()
 
         # Create adjacency matrix
         mat = np.zeros((len(students), len(students)), dtype=int)
@@ -37,7 +37,7 @@ class Collaboration_Graph:
 
         # Fill the adjacency matrix
         for _, row in df_cohesion_net.iterrows():
-            author = row['author']
+            author = row['moodle_user_id']
             left_neighbor = row.get('left_neighbor', None)
             right_neighbor = row.get('right_neighbor', None)
 
@@ -53,19 +53,19 @@ class Collaboration_Graph:
                 mat[row_index, col_index] += 1
 
         # Map user IDs based on user_mapping type
-        user_ids = (df_cohesion_net[['group', 'author']]
+        user_ids = (df_cohesion_net[['moodle_group_id', 'moodle_user_id']]
                     .drop_duplicates()
-                    .sort_values('group'))
+                    .sort_values('moodle_group_id'))
 
         if user_mapping == 'pseudomize':
             user_ids['user'] = range(1, len(user_ids) + 1)
         elif user_mapping == 'moodle':
-            user_ids['user'] = user_ids['author'].apply(self.get_moodle_author_id)  
+            user_ids['user'] = user_ids['moodle_user_id'].apply(self.get_moodle_user_id)  
         else:
-            user_ids['user'] = user_ids['author']
+            user_ids['user'] = user_ids['moodle_user_id']
 
-        user_ids = user_ids.drop(columns=['group'])
-        student_mapping = dict(zip(user_ids['author'], user_ids['user']))
+        user_ids = user_ids.drop(columns=['moodle_group_id'])
+        student_mapping = dict(zip(user_ids['moodle_user_id'], user_ids['user']))
         
         if self.pseudonym==False:
             student_mapping = dict((v-1,k) for k,v in student_mapping.items())
@@ -89,19 +89,22 @@ class Collaboration_Graph:
         # Check if the graph has 1 or fewer edges
         if len(plotgr.edges) <= 1:
             data = {
-                'group': the_group,
+                'moodle_group_id': the_group,
                 'week': the_week,
                 'until': self.subset_until,
                 'degree_centrality': {},
                 'closeness_centrality': {}
             }
 
-            df = pd.DataFrame([
-                {'author_id': int(author_id), 'degree_centrality': deg_central, 'closeness_centrality': data['closeness_centrality'].get(author_id, 0)}
-                for author_id, deg_central in data['degree_centrality'].items()
+            df = pd.DataFrame([{
+                    'moodle_user_id': int(moodle_user_id), 
+                    'degree_centrality': deg_central, 
+                    'closeness_centrality': data['closeness_centrality'].get(moodle_user_id, 0)
+                    }
+                for moodle_user_id, deg_central in data['degree_centrality'].items()
             ])
 
-            df['group'] = the_group
+            df['moodle_group_id'] = the_group
             df['week'] = the_week
             df['until'] = self.subset_until
 
@@ -111,7 +114,7 @@ class Collaboration_Graph:
         degree_centrality = nx.degree_centrality(plotgr)
         closeness_centrality = nx.closeness_centrality(plotgr)
         data = {
-            'group': the_group,
+            'moodle_group_id': the_group,
             'week': the_week,
             'until': self.subset_until,
             'degree_centrality': degree_centrality,
@@ -119,10 +122,18 @@ class Collaboration_Graph:
         }
         df = pd.DataFrame.from_dict(data['degree_centrality'], orient='index', columns=['degree_centrality'])
         df['closeness_centrality'] = df.index.map(data['closeness_centrality'])
-        df['author_id'] = df.index.astype(int) 
-        df['group'] = data['group']
+        # df['moodle_user_id'] = df.index.astype(int) 
+        df['moodle_group_id'] = data['moodle_group_id']
         df['week'] = data['week']
         df['until'] = data['until']
+        try:
+            df['moodle_user_id'] = df.index.astype(int)
+        except (ValueError, TypeError) as e:
+            print(f"Index conversion error: {e}")
+            print("Index values:", df.index.tolist())
+            print("data['degree_centrality']::: " + str(data['degree_centrality']))
+            # Fallback: numerische Extraktion oder manuelle Bereinigung
+            df['moodle_user_id'] = pd.to_numeric(df.index, errors='coerce').fillna(0).astype(int)
 
         df.reset_index(drop=True, inplace=True)
         
@@ -137,7 +148,7 @@ class Collaboration_Graph:
             })
 
             return {
-                'group': the_group,
+                'moodle_group_id': the_group,
                 'week': the_week,
                 'until': self.subset_until,
                 'activeUsers': len(degrees),
@@ -226,7 +237,7 @@ class Collaboration_Graph:
         closeness_centrality = nx.closeness_centrality(plotgr)
 
         return {
-            'group': the_group,
+            'moodle_group_id': the_group,
             'week': the_week,
             'until': self.subset_until,
             'activeUsers': len(degrees),
@@ -282,7 +293,7 @@ class Collaboration_Graph:
 
         # Save as PDF
         if self.save_plot:
-            output_file = os.path.join(output_path, f"group-graphs/{project_name}-{self.semester}-{self.period_split_interval}-{self.subset_until}-05-group-graph-{group_id}.pdf")
+            output_file = os.path.join(output_path, f"group-graphs/{project_name}-{self.semester}-{self.subset_until}-05-group-graph-{group_id}.pdf") #{self.period_split_interval}
             plt.savefig(output_file, format="pdf", bbox_inches="tight")
 
         # Show plot (optional)
@@ -294,12 +305,12 @@ class Collaboration_Graph:
     def check_random_group(self, author_relations):
         """Manual check"""
         # Step 1: Get all unique groups
-        all_groups = author_relations['group'].drop_duplicates().sort_values().tolist()
+        all_groups = author_relations['moodle_group_id'].drop_duplicates().sort_values().tolist()
         # Step 2: Make a dry run for one group
         # Example:
         example_group = random.choice(all_groups)
         #print('Example group '+ str(example_group))
-        df_cohesion_net = author_relations[author_relations['group'] == example_group]
+        df_cohesion_net = author_relations[author_relations['moodle_group_id'] == example_group]
         #print('Cohesion_net')
         #print(df_cohesion_net)
         plotgr = self.get_cohesion_graph(df_cohesion_net)
@@ -319,7 +330,7 @@ class Collaboration_Graph:
         self.show_plot = show_plot
 
         # Step 1: Get all unique groups
-        all_groups = author_relations['group'].drop_duplicates().sort_values().tolist()
+        all_groups = author_relations['moodle_group_id'].drop_duplicates().sort_values().tolist()
             
         # Step 2: Iterate over all groups and create plot, store plot, and compute graph measures
         graph_measures_list = []
@@ -328,7 +339,7 @@ class Collaboration_Graph:
             prnt(f'Compute graph of group {group}: {i+1}/{len(all_groups)}')
 
             # Create graph and calculate measures
-            df_cohesion_net = author_relations[author_relations['group'] == group]
+            df_cohesion_net = author_relations[author_relations['moodle_group_id'] == group]
             plotgr = self.get_cohesion_graph(df_cohesion_net)  # Generate cohesion graph
 
             # Store graph as plot
@@ -346,9 +357,10 @@ class Collaboration_Graph:
         # Prepare output
         graph_measures_groups = pd.DataFrame(graph_measures_list)
         graph_measures_group_members = pd.concat(graph_measures_group_member_list, ignore_index=True)
-        column_order = ["author_id", "group", "week", "until", "degree_centrality", "closeness_centrality"]
+        column_order = ["moodle_user_id", "moodle_group_id", "week", "until", "degree_centrality", "closeness_centrality"]
         graph_measures_group_members = graph_measures_group_members[column_order]
         graph_measures_group_members.columns = column_order
+
         if save_output:
             self.save_data(graph_measures_groups, 'group-graph-measures-groups.csv')
             self.save_data(graph_measures_group_members, 'group-graph-measures-group-members.csv')
@@ -361,12 +373,12 @@ class Collaboration_Graph:
         
 
         # List of all groups
-        all_groups = sorted(author_relations['group'].unique())
+        all_groups = sorted(author_relations['moodle_group_id'].unique())
 
         # Process each group
         for group in all_groups:
-            g = self.get_cohesion_graph(author_relations[author_relations['group'] == group])
-            nodes = [{'id': int(v), 'group': 1} for v in g.nodes()]
+            g = self.get_cohesion_graph(author_relations[author_relations['moodle_group_id'] == group])
+            nodes = [{'id': int(v), 'moodle_group_id': 1} for v in g.nodes()]
             edges = []
             if g.number_of_edges() > 0:
                 for u, v, data in g.edges(data=True):
@@ -398,7 +410,8 @@ class Collaboration_Graph:
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
-        file_path = f'{output_path}/{project_name}-{self.semester}-{self.period_split_interval}-07-{filename}'
+        file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-07-{filename}' #-{self.period_split_interval}
+        df['semester'] = self.semester
         df.to_csv(
             file_path, 
             index=False,

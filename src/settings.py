@@ -1,5 +1,5 @@
 
-project_name = "edm25"
+project_name = "lak25"
 
 # the standard output folder. Doesn't need to be changed usually
 output_path = "./output/"

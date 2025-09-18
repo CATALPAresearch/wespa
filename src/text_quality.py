@@ -60,7 +60,7 @@ class Preprocess_Text_Quality:
         time_breaks = time_breaks[[
             'id', 
             'moodle_group_id', 
-            #'moodle_author_id', 
+            #'moodle_user_id', 
             'moodle_pad_id', 
             'timestamp']
             ]
@@ -78,6 +78,7 @@ class Preprocess_Text_Quality:
                 text_quality_results.loc[i] = [row.group_id] + [row.pad_id] + [row.timestamp] + [row.period_split_interval] + [(v) for k, v in qs_result.items()]  + [row.text.replace('\n',' ')]
                 i=i+1
 
+        text_quality_results['semester'] = self.semester
         text_quality_results.to_csv(
                     f'{output_path}/{project_name}-{self.semester}-02.2xxx-text-quality', 
                     index=False,
@@ -168,7 +169,8 @@ class Preprocess_Text_Quality:
         """
 
     def save_data(self, df, filename):
-        file_path = f'{output_path}/{project_name}-{self.semester}-{self.period_split_interval}-08-{filename}'
+        file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-08-{filename}' #-{self.period_split_interval}
+        df['semester'] = self.semester
         df.to_csv(
             file_path,
             index=False,

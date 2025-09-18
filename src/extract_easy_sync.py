@@ -273,7 +273,7 @@ class Extract_Easy_Sync:
         if tmp_timebreak[tmp_timebreak['timestamp']==timestamp].shape[0] > 0:
             self.tmp_timestamp = timestamp
             pad_name = str(pad_id).replace('$','xxxx')
-            file_path = f'{output_path}text/{project_name}-{self.semester}-{group_id}-{pad_name}-{self.period_split_interval}-{math.floor(timestamp)}.txt'
+            file_path = f'{output_path}text/{project_name}-{self.semester}-{group_id}-{pad_name}-{math.floor(timestamp)}.txt' #-{self.period_split_interval}
             with open(file_path, 'w') as f:
                 f.write(self.ttext)
         
@@ -360,7 +360,8 @@ class Extract_Easy_Sync:
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
-        file_path = f'{output_path}{project_name}-{self.semester}-02-{filename}'
+        file_path = f'{output_path}{project_name}-{self.semester}-etherpad-02-{filename}'
+        df['semester'] = self.semester
         df.to_csv(
             file_path, 
             index=False,

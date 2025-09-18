@@ -15,7 +15,11 @@ class Load:
         self.period_2 = get_period(semester, period_2_arr)
         self.period_3 = get_period(semester, period_3_arr)
 
-        self.df = None
+        self.df_textedits = None
+        self.df_chats = None
+        self.df_comment_replies = None
+        self.df_comments = None
+        self.df_scrolls = None
     
     def load_data(self, filename):
         return pd.read_csv(f'{self.data_path}/{self.dump}/{filename}')
@@ -82,6 +86,7 @@ class Load:
         df_summary = self.summarize(df, 'text_length')
         self.save_data(df, 'data-comments.csv')
         self.save_data(df_summary, 'data-summary-comments.csv')
+        self.df_comments = df
     
     def process_comment_replies(self, filter_group=None, filter_weeks=None):
         print(f'Loading comment replies data from CSV')
@@ -90,6 +95,7 @@ class Load:
         df_summary = self.summarize(df, 'text_length')
         self.save_data(df, 'data-comment-replies.csv')
         self.save_data(df_summary, 'data-summary-comment-replies.csv')
+        self.df_comment_replies = df
     
     def process_chats(self, filter_group=None, filter_weeks=None):
         print(f'Loading chat data from CSV')
@@ -98,6 +104,7 @@ class Load:
         df_summary = self.summarize(df, 'text_length')
         self.save_data(df, 'data-chats.csv')
         self.save_data(df_summary, 'data-summary-chats.csv')
+        self.df_chats = df
     
 
     def process_scrolls(self, filter_group= None, filter_weeks=None):
@@ -121,6 +128,7 @@ class Load:
         
         self.save_data(df, 'data-scrolls.csv')
         self.save_data(df_summary, 'data-summary-scrolls.csv')
+        self.df_scrolls = df
     
 
     def process_textedits(self, filter_group=None, filter_weeks=None):
@@ -129,7 +137,7 @@ class Load:
         # Step 2: Rename columns for consistency
         df = df.rename(columns={
             'id': 'id',
-            'userid': 'moodle_author_id',
+            'userid': 'moodle_user_id',
             'groupid': 'moodle_group_id',
             'padid': 'moodle_pad_id',
             'taskid': 'moodle_task_id',
@@ -144,27 +152,69 @@ class Load:
             df = self.hashUsers(df)
         
         # Step 8: Remove groups with only one active member
-        active_groups = df.groupby("moodle_group_id")['moodle_author_id'].nunique()
+        active_groups = df.groupby("moodle_group_id")['moodle_user_id'].nunique()
         df = df[df['moodle_group_id'].isin(active_groups[active_groups > 1].index)]
         df["id"] = df.index
         # Step 9: Select only required columns
         selected_columns = [
-            'id', 'moodle_author_id', 'moodle_group_id', 'moodle_pad_id',
+            'id', 'moodle_user_id', 'moodle_group_id', 'moodle_pad_id',
             'textedit_changeset', 'timestamp', 'week', 'period', 'type'
         ]
         df = df[selected_columns]
 
         self.save_data(df, 'data-textedits.csv')
-        self.df = df
+        self.df_textedits = df
 
 
+    def create_user_id_mappings(self):
+        """
+        """
+        print(f'Create list of all users and groups')
+        users_comments = self.df_comments[['authorid', 'groupid', 'userid']]
+        users_comment_replies = self.df_comment_replies[['authorid', 'groupid', 'userid']]
+        users_chat = self.df_chats[['authorid', 'groupid', 'userid']]
+        users_scrolls = self.df_scrolls[['authorid', 'groupid', 'userid']]
+        users_all = pd.concat([users_comments, users_comment_replies, users_chat, users_scrolls], ignore_index=True)
+        users_all = users_all[['authorid', 'groupid', 'userid']].drop_duplicates()
+        users_all['userid'] = users_all['userid'].fillna(0).astype(int)
+        users_all = users_all.rename(columns={
+            'authorid': 'etherpad_user_id',
+            'userid': 'moodle_user_id',
+            'groupid': 'etherpad_group_id'
+        })
+
+        # match with moodle_group_id
+        users_textedits = self.df_textedits[['moodle_user_id', 'moodle_group_id']]
+
+        # join moodle_user_id in users_all with moodle_user_id in users_textedits
+        print('length before ' + str(len(users_all.index)))
+        users_merged = users_textedits.merge(
+            users_all,
+            left_on='moodle_user_id', 
+            right_on='moodle_user_id', 
+            how='right',
+            suffixes=('', '_right') 
+        )
+        users_merged = users_merged[users_merged['moodle_user_id'] == users_merged['moodle_user_id']] 
+        users_merged = users_merged[['moodle_user_id', 'moodle_group_id', 'etherpad_user_id', 'moodle_user_id']].drop_duplicates()
+
+        print('length after ' + str(len(users_merged.index)))
+
+        self.save_data(users_merged, 'data-users.csv')
+        
+        
     def get_data(self):
-        return self.df    
+        """
+        Get textedit data
+        """
+        return self.df_textedits    
+
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
+        df['semester'] = self.semester
         df.to_csv(
-            f'{output_path}/{project_name}-{self.semester}-01-{filename}', 
+            f'{output_path}/{project_name}-{self.semester}-etherpad-01-{filename}', 
             index=False,
             quotechar='"'
             )
@@ -172,12 +222,12 @@ class Load:
 
     def run(self, filter_group=None, filter_weeks=None):
         """ Run all preprocessing tasks """
-        # self.process_textedits(filter_group, filter_weeks)
+        self.process_textedits(filter_group, filter_weeks)
         self.process_comments(filter_group, filter_weeks)
         self.process_comment_replies(filter_group, filter_weeks)
         self.process_chats(filter_group, filter_weeks)
         self.process_scrolls(filter_group, filter_weeks)
-    
+        self.create_user_id_mappings()
 
     def hashUsers(self, df):
         """ TODO hash """
@@ -194,7 +244,7 @@ class Load:
 
         u_moodle_etherpad = load_mapping(moodle_etherpad_file, ["moodle_user_id", "etherpad_user_id"])
         if not u_moodle_etherpad.empty:
-            df = df.merge(u_moodle_etherpad, left_on="moodle_author_id", right_on="moodle_user_id", how="right")
+            df = df.merge(u_moodle_etherpad, left_on="moodle_user_id", right_on="moodle_user_id", how="right")
         
         u_etherpad_hash = load_mapping(etherpad_hash_file, ["etherpad_user_id", "hashuser", "hashgroup", "groupcat"])
         if not u_etherpad_hash.empty:

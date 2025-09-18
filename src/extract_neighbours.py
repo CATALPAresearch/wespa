@@ -24,7 +24,7 @@ class Extract_Neighbours:
         #df_textchanges_short = df_textchanges
 
         # Step 2: Create an empty DataFrame with required columns
-        ###author_relations = pd.DataFrame(columns=['group', 'pad', 'author', 'left_neighbor', 'right_neighbor', 'count'])
+        ###author_relations = pd.DataFrame(columns=['moodle_group_id', 'pad', 'moodle_user_id', 'left_neighbor', 'right_neighbor', 'count'])
         all_author_relations = []
 
         # Get unique pad IDs from df_textchanges
@@ -51,7 +51,7 @@ class Extract_Neighbours:
             pad_changes = []
             for _, change in df_textchanges[df_textchanges['moodle_pad_id'] == pad].iterrows():
                 text_length = int(change['textchange'])
-                author = change['moodle_author_id']
+                author = change['moodle_user_id']
                 pad_id = change['moodle_pad_id']
                 group_id = change['moodle_group_id']
                 start_pos = int(change['position'])
@@ -91,12 +91,12 @@ class Extract_Neighbours:
                 pad_changes.append([group_id, pad_id, author, left_neighbor, right_neighbor, text_length])
 
             # Convert to DataFrame and add to author_relations
-            pad_changes_df = pd.DataFrame(pad_changes, columns=['group', 'pad', 'author', 'left_neighbor', 'right_neighbor', 'count'])
+            pad_changes_df = pd.DataFrame(pad_changes, columns=['moodle_group_id', 'pad', ',moodle_user_id', 'left_neighbor', 'right_neighbor', 'count'])
             all_author_relations.append(pad_changes_df)
             
             ###author_relations = pd.concat([author_relations, pad_changes_df], ignore_index=True)
             author_relations = pd.concat(all_author_relations, ignore_index=True)
-            author_relations.columns = ['group', 'pad', 'author', 'left_neighbor', 'right_neighbor', 'count']
+            author_relations.columns = ['moodle_group_id', 'pad', 'moodle_user_id', 'left_neighbor', 'right_neighbor', 'count']
             author_relations['until'] = self.subset_until
 
             #print(f"{i+1}/{pads_length} {pad} {len(df_textchanges[df_textchanges['moodle_pad_id'] == pad])} {start_time - time.time()} sec")
@@ -107,7 +107,8 @@ class Extract_Neighbours:
     
     def save_data(self, df, filename):
         """ Save data to CSV file"""
-        file_path = f'{output_path}/{project_name}-{self.semester}-{self.period_split_interval}-05-{filename}'
+        file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-05-{filename}' #-{self.period_split_interval}
+        df['semester'] = self.semester
         df.to_csv(
             file_path, 
             index=False,
