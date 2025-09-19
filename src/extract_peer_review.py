@@ -73,12 +73,12 @@ def convert_peer_reviewanswers(docs, output_file):
         row = {
             #'_id': doc.get('_id', ''),
             #'_rev': doc.get('_rev', ''),
-            'projectIdooo': doc.get('projectId', ''),
-            'userId': doc.get('userId', ''),
-            'groupId': doc.get('groupId', ''),
-            'taskId': doc.get('taskId', ''),
-            'created': convert_timestamp(doc.get('created')),
-            'modified': convert_timestamp(doc.get('modified')),
+            'project_id': doc.get('projectId', ''),
+            'moodle_user_id': doc.get('userId', ''),
+            'moodle_group_id': doc.get('groupId', ''),
+            'task_id': doc.get('taskId', ''),
+            'time_created': convert_timestamp(doc.get('created')),
+            'time_modified': convert_timestamp(doc.get('modified')),
             #'answer_raw': doc.get('answer', '')
             'answer_raw': ''+str(doc.get('answer', '')).replace('"', '').replace(',', ';').replace('{', '').replace('}', '').rstrip()+''
         }
@@ -96,6 +96,7 @@ def convert_peer_reviewanswers(docs, output_file):
         df.to_csv(output_file, index=False, encoding='utf-8')
         print(f"Saved {len(csv_data)} records to {output_file}")
         print(f"Columns: {list(df.columns)}")
+
 
 def convert_peer_review_survey(docs, output_file):
     """Convert peer review survey to CSV with wide table format for survey items"""
@@ -121,10 +122,10 @@ def convert_peer_review_survey(docs, output_file):
         row = {
             #'_id': doc.get('_id', ''),
             #'_rev': doc.get('_rev', ''),
-            'projectId': doc.get('projectId', ''),
-            'taskId': doc.get('taskId', ''),
-            'created': convert_timestamp(doc.get('created')),
-            'modified': convert_timestamp(doc.get('modified')),
+            'project_id': doc.get('projectId', ''),
+            'task_id': doc.get('taskId', ''),
+            'time_created': convert_timestamp(doc.get('created')),
+            'time_modified': convert_timestamp(doc.get('modified')),
         }
         csv_data.append(row)
         
@@ -142,6 +143,7 @@ def convert_peer_review_survey(docs, output_file):
         df_items.to_csv(items_file, index=False, encoding='utf-8')
         print(f"Saved {len(survey_items_data)} survey items to {items_file}")
 
+
 def convert_peer_review_groupassign(docs, output_file):
     """Convert peer review group assignments to CSV"""
     print(f"Converting {len(docs)} group assignments...")
@@ -151,10 +153,10 @@ def convert_peer_review_groupassign(docs, output_file):
         row = {
            # '_id': doc.get('_id', ''),
             #'_rev': doc.get('_rev', ''),
-            'groupId': doc.get('groupId', ''),
-            'taskId': doc.get('taskId', ''),
-            'projectId': doc.get('projectId', ''),
-            'peerId': doc.get('peerId', '')
+            'moodle_group_id': doc.get('groupId', ''),
+            'task_id': doc.get('taskId', ''),
+            'project_id': doc.get('projectId', ''),
+            'peer_id': doc.get('peerId', '')
         }
         csv_data.append(row)
     
@@ -164,17 +166,8 @@ def convert_peer_review_groupassign(docs, output_file):
         df.to_csv(output_file, index=False, encoding='utf-8')
         print(f"Saved {len(csv_data)} records to {output_file}")
 
-def main():
-    """Main function to process all three file types"""
-    parser = argparse.ArgumentParser(description='Convert CouchDB JSON dumps to CSV files')
-    parser.add_argument('--input-dir', default='.', help='Directory containing JSON files')
-    parser.add_argument('--output-dir', default='.', help='Directory to save CSV files')
-    
-    args = parser.parse_args()
-    
-    input_dir = args.input_dir
-    output_dir = args.output_dir
-    
+
+def extract_peer_review(input_dir, output_dir):
     # Ensure output directory exists
     os.makedirs(output_dir, exist_ok=True)
     
@@ -219,6 +212,22 @@ def main():
     print(f"\n{'='*50}")
     print("Conversion complete!")
     print(f"{'='*50}")
+
+
+def main():
+    """Main function to process all three file types"""
+    parser = argparse.ArgumentParser(description='Convert CouchDB JSON dumps to CSV files')
+    parser.add_argument('--input-dir', default='.', help='Directory containing JSON files')
+    parser.add_argument('--output-dir', default='.', help='Directory to save CSV files')
+    
+    args = parser.parse_args()
+    
+    input_dir = args.input_dir
+    output_dir = args.output_dir
+
+    extract_peer_review(input_dir, output_dir)
+    
+    
 
 
 if __name__ == "__main__":

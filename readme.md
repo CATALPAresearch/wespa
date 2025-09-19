@@ -39,8 +39,8 @@ WESPA is a Python-based tool and web service tailored for analysis of Etherpad c
 
 **Next steps**
 
-- create versions of the collaboratively created text documents
 - handle peer review data
+- create versions of the collaboratively created text documents
 - setup poetry instead of pip
 - add code comments to all classes and functions
 - finish scheduler and API in app.py
