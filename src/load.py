@@ -67,14 +67,23 @@ class Load:
         cols_to_order = ['id','authorid', 'groupid', 'padid']
         new_columns = cols_to_order + (df.columns.drop(cols_to_order).tolist())
         df = df[new_columns]
+
+        df = df.rename(columns={
+            'authorid': 'etherpad_user_id',
+            'group_id': 'moodle_group_id',
+            'groupid': 'moodle_group_id',
+            'userid' : 'moodle_user_id',
+            'padid': 'pad_id',
+        })
         
         return df
         
 
     def summarize(self, df, sum_col_name):
         """ summarize data """
-        return df.groupby(['authorid', 'groupid', 'period']).agg(
-            sum_entries=('authorid', 'count'),
+        #print('collumns ' + df.columns)
+        return df.groupby(['etherpad_user_id', 'moodle_group_id', 'period']).agg(
+            sum_entries=('etherpad_user_id', 'count'),
             sum_length=(sum_col_name, 'sum')
         ).reset_index()
     
@@ -119,8 +128,8 @@ class Load:
         df = df.drop('distance_tmp', axis=1)
         df["type"] = "scrolls"
         
-        df_summary = df.groupby(['authorid', 'period']).agg(
-            sum_scroll_events=('authorid', 'count'),
+        df_summary = df.groupby(['etherpad_user_id', 'period']).agg(
+            sum_scroll_events=('etherpad_user_id', 'count'),
             sum_scroll_distance=('distance', 'sum'),
             sum_scroll_distance_up=('distance_up', 'sum'),
             sum_scroll_distance_down=('distance_down', 'sum')
@@ -139,7 +148,7 @@ class Load:
             'id': 'id',
             'userid': 'moodle_user_id',
             'groupid': 'moodle_group_id',
-            'padid': 'moodle_pad_id',
+            'padid': 'pad_id',
             'taskid': 'moodle_task_id',
             'text': 'textedit_changeset',
             'rev': 'textedit_rev',
@@ -157,7 +166,7 @@ class Load:
         df["id"] = df.index
         # Step 9: Select only required columns
         selected_columns = [
-            'id', 'moodle_user_id', 'moodle_group_id', 'moodle_pad_id',
+            'id', 'moodle_user_id', 'moodle_group_id', 'pad_id',
             'textedit_changeset', 'timestamp', 'week', 'period', 'type'
         ]
         df = df[selected_columns]
@@ -170,19 +179,14 @@ class Load:
         """
         """
         print(f'Create list of all users and groups')
-        users_comments = self.df_comments[['authorid', 'groupid', 'userid']]
-        users_comment_replies = self.df_comment_replies[['authorid', 'groupid', 'userid']]
-        users_chat = self.df_chats[['authorid', 'groupid', 'userid']]
-        users_scrolls = self.df_scrolls[['authorid', 'groupid', 'userid']]
+        users_comments = self.df_comments[['etherpad_user_id', 'moodle_group_id', 'moodle_user_id']]
+        users_comment_replies = self.df_comment_replies[['etherpad_user_id', 'moodle_group_id', 'moodle_user_id']]
+        users_chat = self.df_chats[['etherpad_user_id', 'moodle_group_id', 'moodle_user_id']]
+        users_scrolls = self.df_scrolls[['etherpad_user_id', 'moodle_group_id', 'moodle_user_id']]
         users_all = pd.concat([users_comments, users_comment_replies, users_chat, users_scrolls], ignore_index=True)
-        users_all = users_all[['authorid', 'groupid', 'userid']].drop_duplicates()
-        users_all['userid'] = users_all['userid'].fillna(0).astype(int)
-        users_all = users_all.rename(columns={
-            'authorid': 'etherpad_user_id',
-            'userid': 'moodle_user_id',
-            'groupid': 'etherpad_group_id'
-        })
-
+        users_all = users_all[['etherpad_user_id', 'moodle_group_id', 'moodle_user_id']].drop_duplicates()
+        users_all['moodle_user_id'] = users_all['moodle_user_id'].fillna(0).astype(int)
+        
         # match with moodle_group_id
         users_textedits = self.df_textedits[['moodle_user_id', 'moodle_group_id']]
 
@@ -196,7 +200,7 @@ class Load:
             suffixes=('', '_right') 
         )
         users_merged = users_merged[users_merged['moodle_user_id'] == users_merged['moodle_user_id']] 
-        users_merged = users_merged[['moodle_user_id', 'moodle_group_id', 'etherpad_user_id', 'moodle_user_id']].drop_duplicates()
+        users_merged = users_merged[['moodle_user_id', 'moodle_group_id', 'etherpad_user_id']].drop_duplicates()
 
         print('length after ' + str(len(users_merged.index)))
 
