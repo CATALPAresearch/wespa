@@ -166,8 +166,8 @@ class Collaboration_Graph:
                 'loseCouples': 0,
                 'density1': 0,
                 'density2': 0,
-                'degree_centrality': 0,
-                'closeness_centrality': 0,
+                'degree_centrality': 0, #FixMe: to be removed because of wrog format
+                'closeness_centrality': 0,  #FixMe: to be removed because of wrog format
             }
 
         # Degree measures
