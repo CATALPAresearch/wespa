@@ -26,10 +26,12 @@ OUTPUT_DIR = os.path.join('..','data',TODAY_TIMESTAMP)
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-def extract_moodle_groups():
+
+
+def extract_groups_from_moodle():
     """
-    1. groupgrep.py: Scraped group IDs and group member IDs from a give moodle course and stores them in groups.json
-    2. groups.json needs to be transfered to polaris://docker/backup. After updating the current course_id in the .env, the backupprocess needs to be rebild on polaris: 
+    Step 1. groupgrep.py: Scraped group IDs and group member IDs from a give moodle course and stores them in groups.json
+    groups.json needs to be transfered to polaris://docker/backup. After updating the current course_id in the .env, the backupprocess needs to be rebild on polaris: 
     """
     # extract groups from course
     groups_data = extract_moodle_groups(
@@ -57,9 +59,31 @@ def extract_moodle_groups():
 
 
 
-def backup_etherpad():
+def restart_docker_for_backup():
     """
-    3. The resulting backedup files at /docker/backup/backup/<unixtimestamp> (json file per group) need to be downloaded 
+    Step 2. Perform the backup of etherpad
+    """
+    sudo_password = 'hesse'
+    
+    command = f'cd /docker/backup && echo {os.getenv("POLARIS_PASSWORD")} | sudo -S -u {os.getenv("POLARIS_ADMIN")} docker compose up --force-recreate --build -d'
+    print(command)
+    return
+    result = subprocess.run(
+        ['ssh', os.getenv('SSH_PROFILE'), command],
+        capture_output=True,
+        text=True
+    )
+    
+    print(result.stdout)
+    if result.stderr:
+        print("Errors:", result.stderr)
+    
+    return result.returncode == 0
+
+
+def download_backup():
+    """
+    Step 3. The resulting backedup files at /docker/backup/backup/<unixtimestamp> (json file per group) need to be downloaded 
     """
     # do the backup #TODO: Reimplement in Python. Make the script executable with docker -run ...
     #sudo su burchart 
@@ -110,6 +134,8 @@ def backup_etherpad():
     except subprocess.CalledProcessError as e:
         print(f"SSH command failed: {e}")
         return None
+    
+    return dump_timestamp
 
 
 
@@ -284,14 +310,23 @@ def validate_completion(path1, path2):
 
 
 if __name__ == '__main__':
-    
-    # backup_etherpad()
+    # Step 1
+    #extract_groups_from_moodle()
+
+    # Step 2
+    restart_docker_for_backup()
+
+    # Step 3
+    #dump_timestamp = download_backup()
+
     # Step 4 (tested)
-    #store_backup_in_postgres()
+    #store_backup_in_postgres(dump_timestamp=dump_timestamp)
+    
     # Step 5
     #export_postgres_to_csv()
 
-    validate_completion('../data/etherpad-dumps/1762783987869', '../output/json/week-1')
+
+    # validate_completion('../data/etherpad-dumps/'+dump_timestamp, '../output/json/week-1')
     
     #dump_peer_review()
     #dump_couchdb_database
