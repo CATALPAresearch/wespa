@@ -41,19 +41,15 @@ class Load:
             df['week'] = df['timecreated'].apply(lambda x: x.strftime("%y-%U")) 
         except():
             print('EXEPTION at time conversion')
-
+        
         # FixMe: The periods 1-3 are too specific
         df.assign(period='none')
         if filter_weeks != None:    
             df['period'] = df['week'].apply(lambda x: 'T1' if x in self.period_1 else ('T2' if x in self.period_2 else ('T3' if x in self.period_3 else 'other')))
-            df = df[df['period'].isin(['T2', 'T3'])]
-            
-        #df.loc[:, 'activity'] = activity
-        #df.loc.__setitem__((slice(None), ('activity')), activity)
-        #df.loc[:,'activity'] = activity
-        #df['activity'].apply(lambda x: activity)
+            df = df[df['period'].isin(['T2', 'T3'])] #'T1', 
+        
         df.assign(activity=activity)
-        #df.__getitem__('activity').__setitem__('activity', activity)
+        
         if 'text' in df.columns:
             df.assign(text_length=0)
             df.loc[:, 'text_length'] = df.loc[:, 'text'].str.len() # Fixme
@@ -62,7 +58,7 @@ class Load:
         df = df[~df['authorid'].isin(teacher_ids)]
         df = df[df['authorid'] != '']
         df = df[~df['authorid'].isnull()]
-
+        
         # rearrange columns
         cols_to_order = ['id','authorid', 'groupid', 'padid']
         new_columns = cols_to_order + (df.columns.drop(cols_to_order).tolist())
@@ -73,7 +69,7 @@ class Load:
             'group_id': 'moodle_group_id',
             'groupid': 'moodle_group_id',
             'userid' : 'moodle_user_id',
-            'padid': 'pad_id',
+            'padid': 'moodle_pad_id',
         })
         
         return df
@@ -148,7 +144,7 @@ class Load:
             'id': 'id',
             'userid': 'moodle_user_id',
             'groupid': 'moodle_group_id',
-            'padid': 'pad_id',
+            'padid': 'moodle_pad_id',
             'taskid': 'moodle_task_id',
             'text': 'textedit_changeset',
             'rev': 'textedit_rev',
@@ -166,7 +162,7 @@ class Load:
         df["id"] = df.index
         # Step 9: Select only required columns
         selected_columns = [
-            'id', 'moodle_user_id', 'moodle_group_id', 'pad_id',
+            'id', 'moodle_user_id', 'moodle_group_id', 'moodle_pad_id',
             'textedit_changeset', 'timestamp', 'week', 'period', 'type'
         ]
         df = df[selected_columns]
