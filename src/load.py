@@ -46,7 +46,7 @@ class Load:
         df.assign(period='none')
         if filter_weeks != None:    
             df['period'] = df['week'].apply(lambda x: 'T1' if x in self.period_1 else ('T2' if x in self.period_2 else ('T3' if x in self.period_3 else 'other')))
-            df = df[df['period'].isin(['T2', 'T3'])] #'T1', 
+            df = df[df['period'].isin(['T1', 'T2', 'T3'])] 
         
         df.assign(activity=activity)
         
