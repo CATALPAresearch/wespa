@@ -211,16 +211,23 @@ def export_postgres_to_csv():
             conn.close()
 
 
-def run_wespa_analysis_cycle():
+def run_wespa_analysis_cycle(dump='1762783987869', semester='WS2025_26', week='week-1', scope='week'):
     """
     Step 6. Then, the csv files are processed by WESPA.
     """
     pass
 
 
+def move_analysis_results_to_server():
+    """
+    Step 7. 
+    """
+    pass
+
+
 def dump_couchdb_database(server_url, db_name, username, password, output_file):
     """
-    Step 7. Optional step to backup couchDB
+    Step 8. Optional step to backup couchDB
     * run `ssh -L 5984:localhost:5984 polaris`
     * open in browser: http://localhost:5984/_utils/
     * enter user and password: marc    XKXTDzs4BEcU1Z6tOM6ZglNwn8sVw6mgwUnTniNTQ66D3
@@ -314,20 +321,34 @@ if __name__ == '__main__':
     #extract_groups_from_moodle()
 
     # Step 2
-    restart_docker_for_backup()
+    #restart_docker_for_backup()
 
     # Step 3
-    #dump_timestamp = download_backup()
+    dump_timestamp = download_backup()
 
     # Step 4 (tested)
-    #store_backup_in_postgres(dump_timestamp=dump_timestamp)
+    store_backup_in_postgres(dump_timestamp=dump_timestamp)
     
     # Step 5
-    #export_postgres_to_csv()
+    export_postgres_to_csv()
 
+    # Step 6
+    current_week='week-2'
+    #run_wespa_analysis_cycle(dump=dump_timestamp, semester='WS2025_26', week=current_week)
 
-    # validate_completion('../data/etherpad-dumps/'+dump_timestamp, '../output/json/week-1')
-    
+    # Step 7
+    #move_analysis_results_to_server()
+    #validate_completion('../data/etherpad-dumps/' + dump_timestamp, '../output/json/' + current_week)
+
+    # ----
+    # Step 8
+    # dump_couchdb_database(server_url, db_name, username, password, output_file)
+
+    # Step 9
     #dump_peer_review()
-    #dump_couchdb_database
+
+    
+    
+    #
+    
     # couchbackup --db peer_review_answer --url http://marc:XKXTDzs4BEcU1Z6tOM6ZglNwn8sVw6mgwUnTniNTQ66D3@localhost:5984 > peer_review_answer.json
