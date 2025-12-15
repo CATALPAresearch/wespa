@@ -333,7 +333,7 @@ if __name__ == '__main__':
     export_postgres_to_csv()
 
     # Step 6
-    current_week='week-2'
+    current_week='week-5'
     #run_wespa_analysis_cycle(dump=dump_timestamp, semester='WS2025_26', week=current_week)
 
     # Step 7
