@@ -338,7 +338,7 @@ class Extract_Easy_Sync:
             .apply(
                 lambda group: group.assign(
                     week=group['timestamp'].apply(
-                        lambda ts: pd.to_datetime(ts, unit='s').strftime("%y-%U")
+                        lambda ts: pd.to_datetime(ts, unit='s').strftime("%y-%W")
                     ),
                     **group.apply(lambda row: 
                         self.extract_changeset(

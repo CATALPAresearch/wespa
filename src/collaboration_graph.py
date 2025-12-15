@@ -13,9 +13,10 @@ from .util import print_all_output
 
 class Collaboration_Graph:
 
-    def __init__(self, semester, period_split_interval=0):
+    def __init__(self, semester, period_split_interval=0, save_output=True):
         self.semester = semester
         self.period_split_interval = period_split_interval
+        self.save_output=save_output
         self.save_plot = False
         self.save_outpu = False
         self.show_plot = False
@@ -370,7 +371,6 @@ class Collaboration_Graph:
 
     def create_json_graph_for_all_groups(self, author_relations, last_modified = 0, save_to_file=False, target_week='week-1'):
         """Creates a file containing a JSON object describing the group cohesian graph"""
-        
 
         # List of all groups
         all_groups = sorted(author_relations['moodle_group_id'].unique())
@@ -378,7 +378,7 @@ class Collaboration_Graph:
         # Process each group
         for group in all_groups:
             g = self.get_cohesion_graph(author_relations[author_relations['moodle_group_id'] == group])
-            nodes = [{'id': int(v), 'moodle_group_id': 1} for v in g.nodes()]
+            nodes = [{'id': int(v), 'group': 1} for v in g.nodes()] # Important: 'group' remains as key.
             edges = []
             if g.number_of_edges() > 0:
                 for u, v, data in g.edges(data=True):
@@ -410,6 +410,8 @@ class Collaboration_Graph:
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
+        if self.save_output == False:
+            return
         file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-07-{filename}' #-{self.period_split_interval}
         df['semester'] = self.semester
         df.to_csv(

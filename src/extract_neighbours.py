@@ -13,10 +13,11 @@ class Extract_Neighbours:
     """
     Desc: xxx
     """
-    def __init__(self,semester, period_split_interval=0):
+    def __init__(self,semester, period_split_interval=0, save_output=True):
         self.semester = semester
         self.subset_until = 0
         self.period_split_interval = period_split_interval
+        self.save_output=save_output
         
     def extract_neighbours(self, df_textchanges, subset_until=0):
         self.subset_until = subset_until
@@ -107,6 +108,9 @@ class Extract_Neighbours:
     
     def save_data(self, df, filename):
         """ Save data to CSV file"""
+        if self.save_output == False:
+            return
+        
         file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-05-{filename}' #-{self.period_split_interval}
         df['semester'] = self.semester
         df.to_csv(

@@ -8,10 +8,11 @@ from .util import print_all_output
 
 class Extract_Degree:
 
-    def __init__(self, semester, period_split_interval=0):
+    def __init__(self, semester, period_split_interval=0, save_output=True):
         self.semester = semester
         self.subset_until = 0
         self.period_split_interval = period_split_interval
+        self.save_output=save_output
 
     def summarize_individual_level(self, author_relations, subset_until=0):
         """
@@ -175,6 +176,9 @@ class Extract_Degree:
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
+        if self.save_output == False:
+            return
+        
         file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-06-{filename}' # {self.period_split_interval
         df['semester'] = self.semester
         df.to_csv(
