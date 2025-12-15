@@ -38,7 +38,7 @@ class Load:
                 format='ISO8601' #format="YYYY-MM-DD HH:MM:SS.ss±TZ"
                 ) 
             df['timestamp'] = df.timecreated.apply(lambda x: pd.Timestamp.timestamp(x))
-            df['week'] = df['timecreated'].apply(lambda x: x.strftime("%y-%U")) 
+            df['week'] = df['timecreated'].apply(lambda x: x.strftime("%y-%W")) # %U week start on sunday, %W week starts on Monday
         except():
             print('EXEPTION at time conversion')
         
