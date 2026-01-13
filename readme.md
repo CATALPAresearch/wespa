@@ -54,7 +54,7 @@ WESPA is a Python-based tool and web service tailored for analysis of Etherpad c
 
 **Prerequisits**
 
-- Python 3.11.6
+- Python 3.12.5
 - poetry
 
 ```bash
