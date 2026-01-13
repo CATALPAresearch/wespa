@@ -181,11 +181,20 @@ class Extract_Degree:
         
         file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-06-{filename}' # {self.period_split_interval
         df['semester'] = self.semester
-        df.to_csv(
+        #df['moodle_pad_id'] = df['pad']
+        #df = df.drop(['pad'], axis=1, errors='ignore')
+        df = df.drop(['timecreated'], axis=1, errors='ignore')
+        priority = ['semester', 'type', 'id', 'moodle_user_id', 'moodle_group_id', 'moodle_pad_id', 'etherpad_user_id',
+                     'moderator', 'timestamp', 'period', 'week', 'until', 'taskid']
+        
+        cols = [c for c in priority if c in df.columns] + \
+            sorted([c for c in df.columns if c not in priority])
+        
+        df[cols].to_csv(
             file_path, 
             index=False,
             quotechar='"',
-            header = not os.path.exists(file_path), # False if self.subset_until != 0 else True,
+            #header = not os.path.exists(file_path), # False if self.subset_until != 0 else True,
             mode = 'a' if self.subset_until != 0 else 'w'
             )  
 

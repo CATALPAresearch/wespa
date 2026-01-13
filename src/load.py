@@ -77,11 +77,31 @@ class Load:
 
     def summarize(self, df, sum_col_name):
         """ summarize data """
-        #print('collumns ' + df.columns)
-        return df.groupby(['etherpad_user_id', 'moodle_group_id', 'period']).agg(
+        
+        df_summarized = df.groupby([
+            'etherpad_user_id', 
+            'moodle_user_id', 
+            'moodle_group_id', 
+            'period'
+        ]).agg(
             sum_entries=('etherpad_user_id', 'count'),
             sum_length=(sum_col_name, 'sum')
         ).reset_index()
+        
+        # Reorder columns
+        priority = [
+            'etherpad_user_id', 
+            'moodle_user_id', 
+            'moodle_group_id', 
+            'period', 
+            'sum_entries', 
+            'sum_length'
+        ]
+        
+        ordered_cols = [c for c in priority if c in df_summarized.columns] + \
+                    sorted([c for c in df_summarized.columns if c not in priority])
+        
+        return df_summarized[ordered_cols]
     
 
     def process_comments(self, filter_group=None, filter_weeks=None):
@@ -124,7 +144,7 @@ class Load:
         df = df.drop('distance_tmp', axis=1)
         df["type"] = "scrolls"
         
-        df_summary = df.groupby(['etherpad_user_id', 'period']).agg(
+        df_summary = df.groupby(['moodle_user_id', 'moodle_group_id', 'etherpad_user_id', 'period']).agg(
             sum_scroll_events=('etherpad_user_id', 'count'),
             sum_scroll_distance=('distance', 'sum'),
             sum_scroll_distance_up=('distance_up', 'sum'),
@@ -212,8 +232,15 @@ class Load:
 
     def save_data(self, df, filename):
         """ Save data to CSV file"""
+        # column order
         df['semester'] = self.semester
-        df.to_csv(
+        df = df.drop(['timecreated'], axis=1, errors='ignore')
+        priority = ['semester', 'type', 'id', 'moodle_user_id', 'moodle_group_id', 'moodle_pad_id', 'etherpad_user_id',
+                     'moderator', 'timestamp', 'period', 'week', 'taskid']
+        cols = [c for c in priority if c in df.columns] + \
+            sorted([c for c in df.columns if c not in priority])
+        
+        df[cols].to_csv(
             f'{output_path}/{project_name}-{self.semester}-etherpad-01-{filename}', 
             index=False,
             quotechar='"'

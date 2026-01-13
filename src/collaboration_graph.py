@@ -167,8 +167,8 @@ class Collaboration_Graph:
                 'loseCouples': 0,
                 'density1': 0,
                 'density2': 0,
-                'degree_centrality': 0, #FixMe: to be removed because of wrog format
-                'closeness_centrality': 0,  #FixMe: to be removed because of wrog format
+                'degree_centrality': 0, 
+                'closeness_centrality': 0, 
             }
 
         # Degree measures
@@ -361,6 +361,9 @@ class Collaboration_Graph:
         column_order = ["moodle_user_id", "moodle_group_id", "week", "until", "degree_centrality", "closeness_centrality"]
         graph_measures_group_members = graph_measures_group_members[column_order]
         graph_measures_group_members.columns = column_order
+        
+        # remove centrality measures because they relate to individual level only
+        graph_measures_groups = graph_measures_groups.drop(['closeness_centrality', 'degree_centrality'], axis=1, errors='ignore')
 
         if save_output:
             self.save_data(graph_measures_groups, 'group-graph-measures-groups.csv')
@@ -414,11 +417,18 @@ class Collaboration_Graph:
             return
         file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-07-{filename}' #-{self.period_split_interval}
         df['semester'] = self.semester
-        df.to_csv(
+        df = df.drop(['timecreated'], axis=1, errors='ignore')
+        priority = ['semester', 'type', 'id', 'moodle_user_id', 'moodle_group_id', 'moodle_pad_id', 'etherpad_user_id',
+                     'moderator', 'timestamp', 'period', 'week', 'until', 'taskid']
+        
+        cols = [c for c in priority if c in df.columns] + \
+            sorted([c for c in df.columns if c not in priority])
+        
+        df[cols].to_csv(
             file_path, 
             index=False,
             quotechar='"',
-            header = not os.path.exists(file_path), #False if self.subset_until != 0 else True,
+            #header = not os.path.exists(file_path), #False if self.subset_until != 0 else True,
             mode = 'a' if self.subset_until != 0 else 'w'
             )  
 

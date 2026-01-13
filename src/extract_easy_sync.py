@@ -362,11 +362,16 @@ class Extract_Easy_Sync:
         """ Save data to CSV file"""
         file_path = f'{output_path}{project_name}-{self.semester}-etherpad-02-{filename}'
         df['semester'] = self.semester
-        df.to_csv(
+        priority = ['semester', 'type', 'id', 'moodle_user_id', 'moodle_group_id', 'moodle_pad_id', 'etherpad_user_id',
+                     'moderator', 'timestamp', 'period', 'week', 'taskid']
+        cols = [c for c in priority if c in df.columns] + \
+            sorted([c for c in df.columns if c not in priority])
+        
+        df[cols].to_csv(
             file_path, 
             index=False,
             quotechar='"',
-            header = not os.path.exists(file_path)
+            #header = not os.path.exists(file_path)
             )
 
 

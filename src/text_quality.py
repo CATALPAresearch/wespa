@@ -176,7 +176,7 @@ class Preprocess_Text_Quality:
             index=False,
             mode='a',
             quotechar='"',
-            header=not os.path.exists(file_path)
+            #header=not os.path.exists(file_path)
         )
 
 
