@@ -294,7 +294,7 @@ class Collaboration_Graph:
 
         # Save as PDF
         if self.save_plot:
-            output_file = os.path.join(output_path, f"group-graphs/{project_name}-{self.semester}-{self.subset_until}-05-group-graph-{group_id}.pdf") #{self.period_split_interval}
+            output_file = os.path.join(output_path, f"group-graphs/{project_name}{self.semester}-{self.subset_until}-05-group-graph-{group_id}.pdf") #{self.period_split_interval}
             plt.savefig(output_file, format="pdf", bbox_inches="tight")
 
         # Show plot (optional)
@@ -415,7 +415,7 @@ class Collaboration_Graph:
         """ Save data to CSV file"""
         if self.save_output == False:
             return
-        file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-07-{filename}' #-{self.period_split_interval}
+        file_path = f'{output_path}/{project_name}{self.semester}-etherpad-07-{filename}' #-{self.period_split_interval}
         df['semester'] = self.semester
         df = df.drop(['timecreated'], axis=1, errors='ignore')
         priority = ['semester', 'type', 'id', 'moodle_user_id', 'moodle_group_id', 'moodle_pad_id', 'etherpad_user_id',

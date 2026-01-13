@@ -179,7 +179,7 @@ class Extract_Degree:
         if self.save_output == False:
             return
         
-        file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-06-{filename}' # {self.period_split_interval
+        file_path = f'{output_path}/{project_name}{self.semester}-etherpad-06-{filename}' # {self.period_split_interval
         df['semester'] = self.semester
         #df['moodle_pad_id'] = df['pad']
         #df = df.drop(['pad'], axis=1, errors='ignore')

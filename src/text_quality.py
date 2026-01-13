@@ -80,7 +80,7 @@ class Preprocess_Text_Quality:
 
         text_quality_results['semester'] = self.semester
         text_quality_results.to_csv(
-                    f'{output_path}/{project_name}-{self.semester}-02.2xxx-text-quality', 
+                    f'{output_path}/{project_name}{self.semester}-02.2xxx-text-quality', 
                     index=False,
                     quotechar='"'
                     )
@@ -169,7 +169,7 @@ class Preprocess_Text_Quality:
         """
 
     def save_data(self, df, filename):
-        file_path = f'{output_path}/{project_name}-{self.semester}-etherpad-08-{filename}' #-{self.period_split_interval}
+        file_path = f'{output_path}/{project_name}{self.semester}-etherpad-08-{filename}' #-{self.period_split_interval}
         df['semester'] = self.semester
         df.to_csv(
             file_path,

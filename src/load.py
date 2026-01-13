@@ -241,7 +241,7 @@ class Load:
             sorted([c for c in df.columns if c not in priority])
         
         df[cols].to_csv(
-            f'{output_path}/{project_name}-{self.semester}-etherpad-01-{filename}', 
+            f'{output_path}/{project_name}{self.semester}-etherpad-01-{filename}', 
             index=False,
             quotechar='"'
             )

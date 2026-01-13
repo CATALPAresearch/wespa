@@ -17,11 +17,11 @@ class Extract_Sessions:
         """..."""
         output_path = './output'
         # load
-        df_comments = pd.read_csv(f'{output_path}/{project_name}-{semester}-01-data-comments.csv')
-        df_comment_replies = pd.read_csv(f'{output_path}/{project_name}-{semester}-01-data-comment-replies.csv')
-        df_chats = pd.read_csv(f'{output_path}/{project_name}-{semester}-01-data-chats.csv')
-        df_scrolls = pd.read_csv(f'{output_path}/{project_name}-{semester}-01-data-scrolls.csv')
-        df_textedits = pd.read_csv(f'{output_path}/{project_name}-{semester}-01-data-textedits.csv')
+        df_comments = pd.read_csv(f'{output_path}/{project_name}{semester}-01-data-comments.csv')
+        df_comment_replies = pd.read_csv(f'{output_path}/{project_name}{semester}-01-data-comment-replies.csv')
+        df_chats = pd.read_csv(f'{output_path}/{project_name}{semester}-01-data-chats.csv')
+        df_scrolls = pd.read_csv(f'{output_path}/{project_name}{semester}-01-data-scrolls.csv')
+        df_textedits = pd.read_csv(f'{output_path}/{project_name}{semester}-01-data-textedits.csv')
 
         # select and combine
         cols = ['id','moodle_user_id', 'moodle_group_id', 'padid', 'timestamp', 'type']
