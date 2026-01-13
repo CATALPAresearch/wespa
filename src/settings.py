@@ -1,5 +1,6 @@
 
-project_name = ""
+project_name = "edm26"
+
 
 # the standard output folder. Doesn't need to be changed usually
 output_path = "./output/"

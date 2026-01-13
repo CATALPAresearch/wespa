@@ -87,13 +87,13 @@ WESPA can be used an analytics engine to process data from a etherpad database a
 2. Inspect the the extract\*.py files in the src folder
 3. tba.
 
-### 🙌 How You Can Help
+### How You Can Help
 
 We're actively looking for contributors to support and improve this project. You can help by:
 
-- 🧪 **Testing** plugin functionality
-- 💡 **Providing feedback** on usability and UX
-- 🚀 **Suggesting or implementing** new features
+- **Testing** functionality
+- **Providing feedback** on usability and UX
+- **Suggesting or implementing** new features
 
 Open an [issue](https://github.com/catalparesearch/wespa/issues) to share ideas, or submit a pull request — we’d love to collaborate!
 
@@ -116,7 +116,7 @@ tba.
 @misc{Seidel2024-OpenChat,
 author = {Seidel, Niels},
 doi = {},
-title = {{WESPA - }},
+title = {{WESPA - Writing Environment Statistical and Predictive Analytics.}},
 url = {https://github.com/CATALPAresearch/wespa},
 year = {2025}
 }

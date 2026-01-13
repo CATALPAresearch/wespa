@@ -57,6 +57,7 @@ class Extract_Neighbours:
                 group_id = change['moodle_group_id']
                 start_pos = int(change['position'])
                 end_pos = start_pos + text_length if text_length >= 0 else start_pos #NewFix
+                timestamp = change['timestamp']
 
                 # Ensure start_pos is within bounds
                 start_pos = max(0, min(start_pos, max_position - 1))
@@ -89,15 +90,15 @@ class Extract_Neighbours:
                     char_authors = np.delete(char_authors, np.s_[start_pos - text_length : start_pos])
 
                 # Append result to pad_changes list
-                pad_changes.append([group_id, pad_id, author, left_neighbor, right_neighbor, text_length])
+                pad_changes.append([group_id, pad_id, author, timestamp, left_neighbor, right_neighbor, text_length])
 
             # Convert to DataFrame and add to author_relations
-            pad_changes_df = pd.DataFrame(pad_changes, columns=['moodle_group_id', 'pad', ',moodle_user_id', 'left_neighbor', 'right_neighbor', 'count'])
+            pad_changes_df = pd.DataFrame(pad_changes, columns=['moodle_group_id', 'pad', ',moodle_user_id', 'timestamp', 'left_neighbor', 'right_neighbor', 'count'])
             all_author_relations.append(pad_changes_df)
             
             ###author_relations = pd.concat([author_relations, pad_changes_df], ignore_index=True)
             author_relations = pd.concat(all_author_relations, ignore_index=True)
-            author_relations.columns = ['moodle_group_id', 'pad', 'moodle_user_id', 'left_neighbor', 'right_neighbor', 'count']
+            author_relations.columns = ['moodle_group_id', 'pad', 'moodle_user_id', 'timestamp', 'left_neighbor', 'right_neighbor', 'count']
             author_relations['until'] = self.subset_until
 
             #print(f"{i+1}/{pads_length} {pad} {len(df_textchanges[df_textchanges['moodle_pad_id'] == pad])} {start_time - time.time()} sec")
